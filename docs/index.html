@@ -41,6 +41,7 @@
   label { display: block; font-weight: 600; margin: 14px 0 4px; }
   input[type=range] { width: 100%; accent-color: var(--now); }
   :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  a { color: var(--focus); }
   output { display: block; min-height: 3.2em; }
   button, summary { font: inherit; cursor: pointer; }
   button { background: var(--ink); color: var(--bg); border: 0; border-radius: 8px; padding: 10px 16px; font-weight: 600; min-height: 44px; }
@@ -118,6 +119,8 @@
           <button class="ghost" type="button" data-preset="-11.5,-9.5,-47.5,-45.6">Jalapão side (approx.)</button>
         </div>
         <canvas id="map" role="img" aria-label="Map of the area, each square is a 28 km cell shaded by hotspots in the chosen period"></canvas>
+        <p class="meta" style="margin:0 0 8px">Each square is about 28 km. Darker red means more hotspots in the dates you picked; grey means none.
+          The box also covers slivers of neighbouring states.</p>
         <div class="row" role="group" aria-label="Area corners in decimal degrees">
           <div><label for="in-n">North (lat)</label><input id="in-n" type="text" inputmode="decimal"></div>
           <div><label for="in-s">South (lat)</label><input id="in-s" type="text" inputmode="decimal"></div>
@@ -146,7 +149,7 @@
         </div>
         <div id="seq-wrap"><div class="bar" id="seq-legend"></div><div class="scale"><span>none</span><span>more hotspots</span></div></div>
         <div id="div-wrap" hidden><div class="bar" id="div-legend"></div><div class="scale"><span>100% below or more</span><span>normal</span><span>100% above or more</span></div></div>
-        <p class="meta">Dashed outline: provisional weeks (near-real-time data, may change). Empty squares: too few hotspots in the average to compare.
+        <p class="meta">Solid outline: the dates you picked. Dashed outline: provisional weeks (near-real-time data, may change). Empty squares: too few hotspots in the average to compare.
           “Normal” is the average of the previous 10 years for the same week.</p>
         <output id="cal-readout" for="calendar" aria-live="polite"></output>
 

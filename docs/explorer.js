@@ -12,6 +12,7 @@
   let G, cells, NW, MOD, VII, dataThrough, firstMs;
   let rect, sel = [], series, cal, view = "count", cursor = null, range = { a: 1, b: 1 };
   let dragStart = null, cellTotals = null, mapPx = 12;
+  const ML = 40, MT = 6, MB = 20;
 
   // ---------- helpers ----------
   const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -106,9 +107,9 @@
   function drawMap() {
     const cv = $("map"), css = getComputedStyle(document.documentElement);
     const ratio = window.devicePixelRatio || 1;
-    const cssW = Math.min(cv.parentElement.clientWidth, 420);
-    mapPx = cssW / G.cols;
-    const cssH = mapPx * G.rows;
+    const cssW = Math.min(cv.parentElement.clientWidth, 440);
+    mapPx = (cssW - ML - 4) / G.cols;
+    const cssH = MT + mapPx * G.rows + MB;
     cv.style.width = cssW + "px"; cv.style.height = cssH + "px";
     cv.width = Math.round(cssW * ratio); cv.height = Math.round(cssH * ratio);
     const g = cv.getContext("2d"); g.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -118,16 +119,26 @@
     for (let c = 0; c < cells; c++) top = Math.max(top, cellTotals[c]);
     for (let c = 0; c < cells; c++) {
       const row = Math.floor(c / G.cols), col = c % G.cols;
-      const x = col * mapPx, y = (G.rows - 1 - row) * mapPx;
+      const x = ML + col * mapPx, y = MT + (G.rows - 1 - row) * mapPx;
       g.fillStyle = cellTotals[c] > 0 ? ramp(SEQ, Math.sqrt(cellTotals[c] / top)) : surface;
       g.fillRect(x, y, mapPx + 0.5, mapPx + 0.5);
     }
     if (rect) {
-      const x = (rect.w - G.origin.lon) / G.cell_degrees * mapPx;
-      const y = (G.rows - (rect.n - G.origin.lat) / G.cell_degrees) * mapPx;
+      const x = ML + (rect.w - G.origin.lon) / G.cell_degrees * mapPx;
+      const y = MT + (G.rows - (rect.n - G.origin.lat) / G.cell_degrees) * mapPx;
       const w = (rect.e - rect.w) / G.cell_degrees * mapPx, h = (rect.n - rect.s) / G.cell_degrees * mapPx;
       g.lineWidth = 3; g.strokeStyle = "#ffffff"; g.strokeRect(x, y, w, h);
       g.lineWidth = 1.5; g.strokeStyle = ink || "#000"; g.strokeRect(x, y, w, h);
+    }
+    g.fillStyle = css.getPropertyValue("--muted").trim() || "#555"; g.font = "11px system-ui, sans-serif";
+    const lat1 = G.origin.lat + G.rows * G.cell_degrees, lon1 = G.origin.lon + G.cols * G.cell_degrees;
+    g.textAlign = "right"; g.textBaseline = "middle";
+    for (let lat = Math.ceil(G.origin.lat); lat <= lat1; lat++) {
+      g.fillText(`${Math.abs(lat)}°S`, ML - 5, MT + (lat1 - lat) / G.cell_degrees * mapPx);
+    }
+    g.textAlign = "center"; g.textBaseline = "top";
+    for (let lon = Math.ceil(G.origin.lon); lon <= lon1; lon++) {
+      g.fillText(`${Math.abs(lon)}°W`, ML + (lon - G.origin.lon) / G.cell_degrees * mapPx, MT + G.rows * mapPx + 5);
     }
   }
 
@@ -152,10 +163,20 @@
       let fill;
       if (view === "count") fill = c.value > 0 ? ramp(SEQ, Math.sqrt(c.value / cal.vmax)) : ramp(SEQ, 0);
       else fill = Number.isNaN(c.anomaly) ? "none" : ramp(DIV, (Math.max(-1, Math.min(1, c.anomaly)) + 1) / 2);
-      const faded = !fullRange && !inRange(c.w) ? ' opacity=".28"' : "";
       const dash = c.provisional ? ' stroke="var(--ink)" stroke-width=".6" stroke-dasharray="2 1.5"' : "";
       const none = fill === "none" ? ' stroke="var(--line)" stroke-width=".5"' : "";
-      svg += `<rect x="${x}" y="${y}" width="${cw - 1}" height="${ch - 1}" fill="${fill}"${faded}${dash}${none}/>`;
+      svg += `<rect x="${x}" y="${y}" width="${cw - 1}" height="${ch - 1}" fill="${fill}"${dash}${none}/>`;
+    }
+    if (!fullRange) {                       // one outline per year around the weeks inside the chosen dates
+      const spans = new Map();
+      for (const c of cal.cells) {
+        if (!inRange(c.w)) continue;
+        const s = spans.get(c.year) || [99, 0];
+        spans.set(c.year, [Math.min(s[0], c.week), Math.max(s[1], c.week)]);
+      }
+      for (const [year, [a, b]] of spans) {
+        svg += `<rect x="${L + (a - 1) * cw - 1}" y="${T + (year - cal.minY) * ch - 1}" width="${(b - a + 1) * cw + 1}" height="${ch + 1}" fill="none" stroke="var(--ink)" stroke-width="1.5"/>`;
+      }
     }
     if (cursor) {
       const x = L + (cursor.week - 1) * cw, y = T + (cursor.year - cal.minY) * ch;
@@ -281,8 +302,8 @@
   // ---------- events ----------
   function cellAt(ev) {
     const box = $("map").getBoundingClientRect();
-    const col = Math.min(G.cols - 1, Math.max(0, Math.floor((ev.clientX - box.left) / mapPx)));
-    const row = Math.min(G.rows - 1, Math.max(0, G.rows - 1 - Math.floor((ev.clientY - box.top) / mapPx)));
+    const col = Math.min(G.cols - 1, Math.max(0, Math.floor((ev.clientX - box.left - ML) / mapPx)));
+    const row = Math.min(G.rows - 1, Math.max(0, G.rows - 1 - Math.floor((ev.clientY - box.top - MT) / mapPx)));
     return { row, col };
   }
   function rectFromCells(a, b) {
