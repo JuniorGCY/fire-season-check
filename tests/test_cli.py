@@ -53,3 +53,15 @@ def test_too_few_overlap_years_stops_with_a_clear_message(tmp_path):
     viirs = _write_sensor(tmp_path / "v.csv", 2024, "2025-10-13", 80, "SNPP")
     with pytest.raises(SystemExit, match="overlapping years"):
         run([modis], [viirs], tmp_path / "x.json")
+
+
+def test_grid_file_is_written_and_matches_totals(tmp_path):
+    modis = _write_sensor(tmp_path / "m.csv", 2000, "2025-10-13", 20, "Terra")
+    viirs = _write_sensor(tmp_path / "v.csv", 2012, "2025-10-13", 80, "SNPP")
+    grid_path = tmp_path / "g" / "grid.json"
+    run([modis], [viirs], tmp_path / "x.json", grid_out=grid_path)
+    grid = json.loads(grid_path.read_text())
+    first_week = pd.Timestamp(grid["first_week"])
+    mondays = pd.date_range(first_week, first_week + pd.Timedelta(weeks=grid["n_weeks"] - 1), freq="W-MON")
+    assert sum(grid["modis"]["n"]) == 20 * len(mondays)
+    assert grid["n_weeks"] > 1300

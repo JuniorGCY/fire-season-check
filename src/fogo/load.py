@@ -63,6 +63,8 @@ def read_firms_csv(path: Path, box: BBox) -> pd.DataFrame:
     key_columns = [c for c in KEY_COLUMNS if c in frame.columns]
     result = frame.loc[keep, key_columns].copy()
     result["day"] = day[keep]
+    result["lat"] = lat[keep]
+    result["lon"] = lon[keep]
     if "frp" in frame.columns:
         result["frp"] = pd.to_numeric(frame.loc[keep, "frp"], errors="coerce").fillna(0.0)
     else:
@@ -82,5 +84,5 @@ def read_firms(paths: Iterable[Path | str], box: BBox) -> pd.DataFrame:
         frames.append(frame[is_new])
         seen.update(keys)
     if not frames:
-        return pd.DataFrame(columns=[*KEY_COLUMNS, "day", "frp"])
+        return pd.DataFrame(columns=[*KEY_COLUMNS, "day", "lat", "lon", "frp"])
     return pd.concat(frames, ignore_index=True)

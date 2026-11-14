@@ -65,7 +65,7 @@ python -m pytest -q                      # 37 tests
 PYTHONPATH=src python -m fogo.cli build \
   --modis path/to/fire_archive_M-C61_*.csv path/to/fire_nrt_M-C61_*.csv \
   --viirs path/to/fire_archive_SV-C2_*.csv path/to/fire_nrt_SV-C2_*.csv \
-  --out docs/data/tocantins.json
+  --out docs/data/tocantins.json --grid-out docs/data/grid.json
 cd docs && python -m http.server 8765    # open http://localhost:8765
 ```
 

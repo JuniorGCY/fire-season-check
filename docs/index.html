@@ -52,6 +52,25 @@
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   footer { color: var(--muted); font-size: .85rem; }
   footer p { margin: 6px 0; }
+
+  .row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; }
+  .row > div { flex: 1 1 110px; } .row label { margin: 0 0 4px; font-size: .9rem; }
+  input[type=text], input[type=date] { width: 100%; font: inherit; padding: 9px 10px; min-height: 44px; color: var(--ink);
+    background: var(--bg); border: 1.5px solid var(--line); border-radius: 8px; }
+  .err { color: #b42318; min-height: 1.3em; margin: 4px 0 0; font-size: .9rem; }
+  @media (prefers-color-scheme: dark) { .err { color: #ff9b8f; } }
+  #map { display: block; margin: 10px 0; touch-action: none; cursor: crosshair; border: 1px solid var(--line); border-radius: 6px; max-width: 100%; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  .chips button { min-height: 40px; padding: 6px 12px; font-size: .9rem; }
+  .cal-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
+  .cal-scroll:focus-visible { outline-offset: 0; }
+  .cal-scroll svg { width: auto; max-width: none; }
+  .cal-scroll svg text { font-size: 10px; }
+  .bar { height: 12px; border-radius: 6px; border: 1px solid var(--line); margin: 4px 0 0; max-width: 320px; }
+  .scale { display: flex; justify-content: space-between; max-width: 320px; font-size: .8rem; color: var(--muted); }
+  fieldset { border: 0; padding: 0; margin: 12px 0 6px; } legend { font-weight: 600; padding: 0; }
+  fieldset label { display: inline-block; font-weight: 400; margin: 6px 16px 0 0; }
+  .note { background: var(--warn-bg); color: var(--warn-ink); border-radius: 8px; padding: 8px 12px; margin: 10px 0; font-size: .92rem; }
   #state { text-align: center; color: var(--muted); padding: 40px 0; }
 </style>
 </head>
@@ -86,6 +105,61 @@
       <output id="readout" for="week" aria-live="polite"></output>
     </section>
 
+
+    <section class="card" aria-labelledby="ex-title">
+      <h2 id="ex-title" style="font-size:1.05rem;margin:0 0 6px">Explore any area and period</h2>
+      <p class="meta" style="margin:0 0 8px">Draw a rectangle on the map (drag with mouse or finger) or type its corners, then pick dates.
+        Both satellites are combined on one ruler, from November 2000 to <span id="data-end">…</span>.</p>
+      <div id="ex-state" role="status" aria-live="polite" style="text-align:center;color:var(--muted);padding:20px 0">Loading the area explorer…</div>
+      <div id="ex-body" hidden>
+        <div class="chips" role="group" aria-label="Quick areas">
+          <button class="ghost" type="button" data-preset="-13.5,-5.0,-50.8,-45.55">Whole Tocantins box</button>
+          <button class="ghost" type="button" data-preset="-12,-8,-50.8,-48.8">Araguaia side (approx.)</button>
+          <button class="ghost" type="button" data-preset="-11.5,-9.5,-47.5,-45.6">Jalapão side (approx.)</button>
+        </div>
+        <canvas id="map" role="img" aria-label="Map of the area, each square is a 28 km cell shaded by hotspots in the chosen period"></canvas>
+        <div class="row" role="group" aria-label="Area corners in decimal degrees">
+          <div><label for="in-n">North (lat)</label><input id="in-n" type="text" inputmode="decimal"></div>
+          <div><label for="in-s">South (lat)</label><input id="in-s" type="text" inputmode="decimal"></div>
+          <div><label for="in-w">West (lon)</label><input id="in-w" type="text" inputmode="decimal"></div>
+          <div><label for="in-e">East (lon)</label><input id="in-e" type="text" inputmode="decimal"></div>
+        </div>
+        <p class="err" id="area-error" role="alert"></p>
+        <p class="meta" id="area" style="margin:0"></p>
+        <div class="row" role="group" aria-label="Date interval" style="margin-top:12px">
+          <div><label for="in-from">From</label><input id="in-from" type="date"></div>
+          <div><label for="in-to">To</label><input id="in-to" type="date"></div>
+        </div>
+        <p class="err" id="range-error" role="alert"></p>
+        <p id="summary" style="margin:8px 0 0;font-weight:600" aria-live="polite"></p>
+        <div class="note" id="small-note" hidden>Small area. The ratio between the two satellites was measured for the whole state,
+          so in a few cells, where weekly counts are low, the error is larger than the number shown above. Prefer totals over several weeks to single weeks.</div>
+
+        <fieldset><legend>Calendar shows</legend>
+          <label><input type="radio" name="view" value="count" checked> Hotspots per week</label>
+          <label><input type="radio" name="view" value="anomaly"> Compared with normal</label>
+        </fieldset>
+        <div id="calendar">
+          <div class="cal-scroll" tabindex="0" role="group" aria-label="Calendar, one row per year and one column per week. Use the arrow keys to move between weeks.">
+            <div class="cal-svg"></div>
+          </div>
+        </div>
+        <div id="seq-wrap"><div class="bar" id="seq-legend"></div><div class="scale"><span>none</span><span>more hotspots</span></div></div>
+        <div id="div-wrap" hidden><div class="bar" id="div-legend"></div><div class="scale"><span>100% below or more</span><span>normal</span><span>100% above or more</span></div></div>
+        <p class="meta">Dashed outline: provisional weeks (near-real-time data, may change). Empty squares: too few hotspots in the average to compare.
+          “Normal” is the average of the previous 10 years for the same week.</p>
+        <output id="cal-readout" for="calendar" aria-live="polite"></output>
+
+        <p style="margin:12px 0 0;display:flex;flex-wrap:wrap;gap:10px">
+          <button id="csv-weekly" type="button">Download weekly series (CSV)</button>
+          <button id="csv-cells" class="ghost" type="button">Download hotspots by 28 km cell (CSV)</button>
+        </p>
+        <p class="meta">The files list hotspot counts per week and per cell for your area and dates, not single detections.
+          Point-level files come from <a href="https://firms.modaps.eosdis.nasa.gov/download/" rel="noopener">NASA FIRMS</a>.
+          Hotspots are satellite detections, not confirmed fires.</p>
+      </div>
+    </section>
+
     <section class="card" aria-labelledby="trust-title">
       <h2 id="trust-title" style="font-size:1.05rem;margin:0 0 6px">How much to trust this</h2>
       <p id="robust" style="margin:0 0 8px"></p>
@@ -112,6 +186,7 @@
   </footer>
 </main>
 
+<script src="explorer.js"></script>
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -261,6 +336,7 @@
       data = await res.json();
       if (!data.curve || !data.curve.length) { show("empty", "No fire data for this region and period yet."); return; }
       render(); show("ready");
+      if (window.FireExplorer) window.FireExplorer.init(data.data_through);
     } catch (e) {
       show("error", "Could not load the data. Check your connection and try again.", true);
     }

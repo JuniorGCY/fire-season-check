@@ -6,12 +6,14 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 import pandas as pd
 
 from .calibrate import CalibrationError, Quantity, compare_methods, fit
 from .export import build_payload, write_payload
+from .grid import build_grid
 from .indicators import InsufficientHistory, headline
 from .load import TOCANTINS, read_firms
 from .series import harmonize
@@ -56,6 +58,7 @@ def run(
     region: str = "Tocantins",
     quantity: Quantity = "count",
     synthetic: bool = False,
+    grid_out: Path | None = None,
 ) -> dict:
     modis_detections = read_firms(modis_paths, TOCANTINS)
     viirs_detections = read_firms(viirs_paths, TOCANTINS)
@@ -95,6 +98,10 @@ def run(
     payload = build_payload(harmonized, result, calibration, error, region, validation, synthetic,
                             checks=checks)
     write_payload(payload, out)
+    if grid_out is not None:
+        grid = build_grid(modis_detections, viirs_detections, TOCANTINS, harmonized.index.max(), calibration)
+        grid_out.parent.mkdir(parents=True, exist_ok=True)
+        grid_out.write_text(json.dumps(grid, separators=(",", ":")))
     return payload
 
 
@@ -106,9 +113,11 @@ def main() -> None:
     build.add_argument("--viirs", type=Path, nargs="+", required=True)
     build.add_argument("--out", type=Path, required=True)
     build.add_argument("--quantity", choices=["count", "frp"], default="count")
+    build.add_argument("--grid-out", type=Path, default=None, help="also write the 0.25 degree grid JSON")
     build.add_argument("--synthetic", action="store_true", help="mark the data as synthetic (dev only)")
     args = parser.parse_args()
-    payload = run(args.modis, args.viirs, args.out, quantity=args.quantity, synthetic=args.synthetic)
+    payload = run(args.modis, args.viirs, args.out, quantity=args.quantity, synthetic=args.synthetic,
+                   grid_out=args.grid_out)
     print(payload["headline"]["text"])
     print("validation:", payload["method"]["validation"],
           "| median weekly error:", payload["method"]["weekly_error_median"],
