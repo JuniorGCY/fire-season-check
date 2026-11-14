@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fire Season Check · Tocantins</title>
+<meta name="description" content="Is this fire season above or below normal? Two NASA satellites, one common ruler, 25 years of hotspots.">
+<style>
+  :root {
+    --bg: #fbfaf7; --surface: #ffffff; --ink: #1d2327; --muted: #5a656c; --line: #d9d6cf;
+    --band: #dfe5e8; --normal: #4a5a63; --now: #c2410c; --warn-bg: #fff4d6; --warn-ink: #5c4300;
+    --focus: #1d4ed8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14181b; --surface: #1c2226; --ink: #eef1f2; --muted: #a2adb3; --line: #323b41;
+      --band: #2b353b; --normal: #aab7be; --now: #fb923c; --warn-bg: #3a2f10; --warn-ink: #ffe3a3;
+      --focus: #8ab4ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.15rem; margin: 0; font-weight: 600; letter-spacing: .01em; }
+  .region { color: var(--muted); margin: 2px 0 20px; }
+  .banner { background: var(--warn-bg); color: var(--warn-ink); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+  .big { font-size: clamp(2.6rem, 9vw, 4rem); font-weight: 700; line-height: 1.05; margin: 0; }
+  .chip { display: inline-block; font-size: .85rem; font-weight: 600; padding: 2px 10px; border-radius: 999px;
+    border: 1.5px solid currentColor; vertical-align: middle; margin-left: 8px; }
+  .lead { font-size: 1.1rem; margin: 10px 0 0; }
+  .meta { color: var(--muted); font-size: .9rem; margin: 8px 0 0; }
+  svg { width: 100%; height: auto; display: block; }
+  svg text { fill: var(--muted); font: 12px system-ui, sans-serif; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 10px 0 0; font-size: .9rem; color: var(--muted); }
+  .legend span::before { content: ""; display: inline-block; width: 22px; height: 0; margin-right: 6px; vertical-align: middle; }
+  .legend .l-now::before { border-top: 4px solid var(--now); }
+  .legend .l-normal::before { border-top: 2px dashed var(--normal); }
+  .legend .l-band::before { height: 10px; background: var(--band); border: 1px solid var(--line); }
+  label { display: block; font-weight: 600; margin: 14px 0 4px; }
+  input[type=range] { width: 100%; accent-color: var(--now); }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  output { display: block; min-height: 3.2em; }
+  button, summary { font: inherit; cursor: pointer; }
+  button { background: var(--ink); color: var(--bg); border: 0; border-radius: 8px; padding: 10px 16px; font-weight: 600; min-height: 44px; }
+  button.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
+  details { margin-top: 8px; } summary { font-weight: 600; padding: 6px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  th, td { text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  footer { color: var(--muted); font-size: .85rem; }
+  footer p { margin: 6px 0; }
+  #state { text-align: center; color: var(--muted); padding: 40px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Fire Season Check</h1>
+  <p class="region" id="region">Tocantins, Brazil</p>
+
+  <div id="state" role="status" aria-live="polite">Loading satellite data…</div>
+
+  <div id="content" hidden>
+    <div class="banner" id="synthetic" role="note" hidden>
+      Development preview with synthetic data. These numbers are not real.
+    </div>
+
+    <section class="card" aria-labelledby="headline-title">
+      <h2 class="sr-only" id="headline-title">Headline</h2>
+      <p class="big"><span id="pct"></span><span class="chip" id="status"></span></p>
+      <p class="lead" id="headline"></p>
+      <p class="meta" id="through"></p>
+    </section>
+
+    <section class="card" aria-labelledby="chart-title">
+      <h2 class="sr-only" id="chart-title">This year compared with the last ten years</h2>
+      <svg id="chart" viewBox="0 0 720 320" role="img" aria-describedby="chart-summary"></svg>
+      <p class="sr-only" id="chart-summary"></p>
+      <div class="legend" aria-hidden="true">
+        <span class="l-now" id="l-now"></span><span class="l-normal">Average of previous years</span><span class="l-band">Lowest to highest year</span>
+      </div>
+      <label for="week">Pick a week</label>
+      <input type="range" id="week" min="1" max="52" value="1">
+      <output id="readout" for="week" aria-live="polite"></output>
+    </section>
+
+    <section class="card" aria-labelledby="trust-title">
+      <h2 id="trust-title" style="font-size:1.05rem;margin:0 0 6px">How much to trust this</h2>
+      <p id="robust" style="margin:0 0 8px"></p>
+      <p id="error" style="margin:0 0 8px"></p>
+      <p id="trust" style="margin:0"></p>
+      <details>
+        <summary>How the two satellites are combined</summary>
+        <p id="method"></p>
+        <p id="sources"></p>
+      </details>
+      <details>
+        <summary>Weekly numbers</summary>
+        <div style="overflow-x:auto"><table id="table"></table></div>
+      </details>
+      <p style="margin:14px 0 0"><button id="csv" type="button">Download weekly numbers (CSV)</button></p>
+    </section>
+  </div>
+
+  <footer>
+    <p>Data: NASA FIRMS (MODIS and VIIRS active fire). Built for the NASA Space Apps Challenge 2026,
+       “Harmonization of MODIS and VIIRS Hot Spots”. Not an official warning system.</p>
+    <p>Super Intelligence disclosure: this page and its pipeline were written with the help of Claude (Anthropic);
+       the idea, the choices and the checks are the author's. Details in the repository README.</p>
+  </footer>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const fmt = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  let W = 720, H = 320;
+  const M = { l: 48, r: 12, t: 12, b: 28 };
+  let data = null;
+
+  const isoMonday = (year, week) => {
+    const jan4 = new Date(Date.UTC(year, 0, 4));
+    const monday = new Date(jan4.getTime() - ((jan4.getUTCDay() + 6) % 7) * 864e5);
+    return new Date(monday.getTime() + (week - 1) * 7 * 864e5);
+  };
+  const dayLabel = (d) => `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
+  const weekRange = (year, week) => {
+    const a = isoMonday(year, week), b = new Date(a.getTime() + 6 * 864e5);
+    return `${dayLabel(a)} to ${dayLabel(b)}`;
+  };
+
+  function show(state, message, retry) {
+    const el = $("state");
+    el.hidden = state === "ready";
+    $("content").hidden = state !== "ready";
+    el.textContent = message || "";
+    if (retry) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "ghost"; b.textContent = "Try again"; b.style.marginTop = "12px";
+      b.onclick = load; el.appendChild(document.createElement("br")); el.appendChild(b);
+    }
+  }
+
+  function scales() {
+    const rows = data.curve;
+    const top = Math.max(1, ...rows.flatMap((r) => [r.high, r.current].filter((v) => v != null))) * 1.08;
+    return {
+      x: (w) => M.l + ((w - 1) / 51) * (W - M.l - M.r),
+      y: (v) => M.t + (1 - v / top) * (H - M.t - M.b),
+      top,
+    };
+  }
+
+  const path = (rows, key, sx, sy) => {
+    let d = "", pen = false;
+    rows.forEach((r) => {
+      if (r[key] == null) { pen = false; return; }
+      d += `${pen ? "L" : "M"}${sx(r.week).toFixed(1)},${sy(r[key]).toFixed(1)}`; pen = true;
+    });
+    return d;
+  };
+
+  function drawChart(selected) {
+    const svg = $("chart");
+    W = Math.max(300, Math.round(svg.parentElement.clientWidth - 36));
+    H = W < 520 ? 250 : 320;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    const rows = data.curve, { x, y, top } = scales();
+    const band = rows.map((r) => `${x(r.week).toFixed(1)},${y(r.high).toFixed(1)}`)
+      .concat(rows.slice().reverse().map((r) => `${x(r.week).toFixed(1)},${y(r.low).toFixed(1)}`)).join(" ");
+    let grid = "";
+    for (let i = 0; i <= 4; i++) {
+      const v = (top / 4) * i;
+      grid += `<line x1="${M.l}" x2="${W - M.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/>` +
+              `<text x="${M.l - 6}" y="${y(v) + 4}" text-anchor="end">${fmt.format(v)}</text>`;
+    }
+    let ticks = "";
+    for (let m = 0; m < 12; m += W < 520 ? 2 : 1) {
+      const wk = Math.min(52, Math.max(1, Math.round((m * 30.4) / 7) + 1));
+      ticks += `<text x="${x(wk)}" y="${H - 8}" text-anchor="middle">${MONTHS[m]}</text>`;
+    }
+    svg.innerHTML = grid + ticks +
+      `<polygon points="${band}" fill="var(--band)"/>` +
+      `<path d="${path(rows, "normal", x, y)}" fill="none" stroke="var(--normal)" stroke-width="2" stroke-dasharray="6 4"/>` +
+      `<path d="${path(rows, "current", x, y)}" fill="none" stroke="var(--now)" stroke-width="3.5" stroke-linejoin="round"/>` +
+      `<line x1="${x(selected)}" x2="${x(selected)}" y1="${M.t}" y2="${H - M.b}" stroke="var(--ink)" stroke-width="1.5"/>`;
+  }
+
+  function readout(week) {
+    const r = data.curve[week - 1], year = data.headline.year;
+    const now = r.current == null ? "no data yet" : fmt.format(r.current);
+    $("readout").textContent =
+      `Week ${week} (${weekRange(year, week)}): ${year}: ${now}. Average of previous years: ${fmt.format(r.normal)}. ` +
+      `Range: ${fmt.format(r.low)} to ${fmt.format(r.high)}.`;
+    drawChart(week);
+  }
+
+  function render() {
+    const h = data.headline, m = data.method;
+    const sign = h.pct_vs_normal >= 0 ? "+" : "−";
+    $("region").textContent = `${data.region} · ${h.year} season so far`;
+    $("pct").textContent = `${sign}${Math.abs(Math.round(h.pct_vs_normal))}%`;
+    const ranked = h.rank === 1 ? "Highest of " + h.compared_years + " years" :
+      h.rank === h.compared_years ? "Lowest of " + h.compared_years + " years" :
+      { above: "Above recent years", within: "Within recent years", below: "Below recent years" }[h.status];
+    $("status").textContent = ranked;
+    $("headline").textContent = h.text;
+    $("through").textContent = `Satellite data through ${data.data_through}. Rank ${h.rank} of ${h.compared_years} years for the same weeks (1 = most ${data.unit}).`;
+    $("synthetic").hidden = !data.synthetic;
+    $("l-now").textContent = `${h.year}`;
+
+    const err = m.weekly_error_median == null ? "not measured" :
+      `about ${Math.round(m.weekly_error_median * 100)}% per week (typical)` +
+      (m.weekly_error_p90 == null ? "" : `, up to about ${Math.round(m.weekly_error_p90 * 100)}% in the worst weeks`);
+    $("error").textContent = `Our common ruler between the two satellites is off by ${err}, measured on years it had not seen.`;
+    const checks = data.robustness || [];
+    if (checks.length) {
+      const all = checks.map((c) => c.pct_vs_normal).concat([h.pct_vs_normal]);
+      const f = (v) => `${v >= 0 ? "+" : "−"}${Math.abs(Math.round(v))}%`;
+      const lo = Math.min(...all), hi = Math.max(...all);
+      const ranks = checks.map((c) => c.rank).concat([h.rank]);
+      const rmin = Math.min(...ranks), rmax = Math.max(...ranks);
+      const rankNote = rmin === rmax ? "" :
+        ` Its rank among the ${h.compared_years} years goes from ${rmin} to ${rmax} depending on the method (1 = most hotspots).`;
+      $("robust").textContent = `Check: calculated ${checks.length} other ways (${checks.map((c) => c.label).join("; ")}). ` +
+        `The answer stays between ${f(lo)} and ${f(hi)}.${rankNote}`;
+    } else { $("robust").hidden = true; }
+    $("trust").textContent = data.trust_note;
+    $("method").textContent = `VIIRS counts are multiplied by ${m.ratio_viirs_to_modis} (${m.fit} fit) to sit on the MODIS ruler. ` +
+      `Before VIIRS existed (January 2012) only MODIS is used. Validation: ${m.validation}.`;
+    $("sources").textContent = `Sources: ${data.sources.join("; ")}.`;
+
+    const rows = data.curve.map((r) => `<tr><td>${r.week}</td><td>${r.current == null ? "–" : fmt.format(r.current)}</td>` +
+      `<td>${fmt.format(r.normal)}</td><td>${fmt.format(r.low)}</td><td>${fmt.format(r.high)}</td></tr>`).join("");
+    $("table").innerHTML = `<caption class="sr-only">Weekly numbers</caption><thead><tr><th scope="col">Week</th>` +
+      `<th scope="col">${h.year}</th><th scope="col">Average</th><th scope="col">Lowest</th><th scope="col">Highest</th></tr></thead><tbody>${rows}</tbody>`;
+
+    const last = Math.min(52, h.last_week);
+    $("chart-summary").textContent = `${h.text} Line chart of weekly values for weeks 1 to 52. ` +
+      `Use the week slider to read each week.`;
+    const slider = $("week"); slider.value = last; slider.oninput = () => readout(+slider.value);
+    readout(last);
+  }
+
+  function downloadCsv() {
+    const lines = ["week,this_year,average_previous_years,lowest,highest"].concat(
+      data.curve.map((r) => [r.week, r.current ?? "", r.normal, r.low, r.high].join(",")));
+    const url = URL.createObjectURL(new Blob([lines.join("\n") + "\n"], { type: "text/csv" }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: "tocantins_weekly_hotspots.csv" });
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }
+
+  async function load() {
+    show("loading", "Loading satellite data…");
+    try {
+      const res = await fetch("data/tocantins.json", { cache: "no-cache" });
+      if (!res.ok) throw new Error(res.status);
+      data = await res.json();
+      if (!data.curve || !data.curve.length) { show("empty", "No fire data for this region and period yet."); return; }
+      render(); show("ready");
+    } catch (e) {
+      show("error", "Could not load the data. Check your connection and try again.", true);
+    }
+  }
+
+  $("csv").onclick = () => data && downloadCsv();
+  window.addEventListener("resize", () => data && !$("content").hidden && drawChart(+$("week").value));
+  load();
+})();
+</script>
+</body>
+</html>

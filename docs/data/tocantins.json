@@ -1,0 +1,449 @@
+{
+ "synthetic": false,
+ "region": "Tocantins",
+ "unit": "hotspots",
+ "generated_on": "2026-11-14",
+ "data_through": "2026-11-01",
+ "headline": {
+  "text": "Through November 1, 2026, Tocantins had 41% fewer hotspots than the average of the previous 10 years (below the range of the last years). Latest weeks are provisional.",
+  "year": 2026,
+  "last_week": 44,
+  "pct_vs_normal": -41.0,
+  "status": "below",
+  "rank": 11,
+  "compared_years": 11,
+  "years_used": [
+   2016,
+   2017,
+   2018,
+   2019,
+   2020,
+   2021,
+   2022,
+   2023,
+   2024,
+   2025
+  ],
+  "provisional": true
+ },
+ "curve": [
+  {
+   "week": 1,
+   "current": 112.0,
+   "normal": 61.8,
+   "low": 2.7,
+   "high": 182.6
+  },
+  {
+   "week": 2,
+   "current": 76.0,
+   "normal": 41.8,
+   "low": 2.3,
+   "high": 94.3
+  },
+  {
+   "week": 3,
+   "current": 165.3,
+   "normal": 74.9,
+   "low": 2.3,
+   "high": 172.6
+  },
+  {
+   "week": 4,
+   "current": 27.3,
+   "normal": 42.7,
+   "low": 17.7,
+   "high": 104.6
+  },
+  {
+   "week": 5,
+   "current": 78.0,
+   "normal": 67.7,
+   "low": 9.3,
+   "high": 159.5
+  },
+  {
+   "week": 6,
+   "current": 52.3,
+   "normal": 80.5,
+   "low": 0.7,
+   "high": 413.9
+  },
+  {
+   "week": 7,
+   "current": 44.4,
+   "normal": 78.7,
+   "low": 0.7,
+   "high": 327.6
+  },
+  {
+   "week": 8,
+   "current": 44.1,
+   "normal": 52.7,
+   "low": 4.1,
+   "high": 330.9
+  },
+  {
+   "week": 9,
+   "current": 3.7,
+   "normal": 77.0,
+   "low": 8.2,
+   "high": 340.9
+  },
+  {
+   "week": 10,
+   "current": 8.4,
+   "normal": 51.7,
+   "low": 9.2,
+   "high": 109.4
+  },
+  {
+   "week": 11,
+   "current": 32.6,
+   "normal": 67.2,
+   "low": 9.2,
+   "high": 215.6
+  },
+  {
+   "week": 12,
+   "current": 35.1,
+   "normal": 60.2,
+   "low": 10.0,
+   "high": 112.8
+  },
+  {
+   "week": 13,
+   "current": 98.6,
+   "normal": 57.3,
+   "low": 33.4,
+   "high": 112.0
+  },
+  {
+   "week": 14,
+   "current": 26.1,
+   "normal": 78.3,
+   "low": 8.1,
+   "high": 185.6
+  },
+  {
+   "week": 15,
+   "current": 68.4,
+   "normal": 77.2,
+   "low": 3.8,
+   "high": 241.2
+  },
+  {
+   "week": 16,
+   "current": 73.1,
+   "normal": 115.4,
+   "low": 9.0,
+   "high": 480.4
+  },
+  {
+   "week": 17,
+   "current": 115.8,
+   "normal": 197.7,
+   "low": 29.9,
+   "high": 538.3
+  },
+  {
+   "week": 18,
+   "current": 125.8,
+   "normal": 255.0,
+   "low": 66.5,
+   "high": 417.6
+  },
+  {
+   "week": 19,
+   "current": 504.6,
+   "normal": 392.0,
+   "low": 181.3,
+   "high": 619.4
+  },
+  {
+   "week": 20,
+   "current": 353.2,
+   "normal": 440.2,
+   "low": 148.5,
+   "high": 711.1
+  },
+  {
+   "week": 21,
+   "current": 578.4,
+   "normal": 638.9,
+   "low": 297.8,
+   "high": 992.0
+  },
+  {
+   "week": 22,
+   "current": 738.4,
+   "normal": 598.3,
+   "low": 224.1,
+   "high": 949.9
+  },
+  {
+   "week": 23,
+   "current": 443.9,
+   "normal": 627.4,
+   "low": 155.1,
+   "high": 916.0
+  },
+  {
+   "week": 24,
+   "current": 577.6,
+   "normal": 758.2,
+   "low": 578.2,
+   "high": 1205.4
+  },
+  {
+   "week": 25,
+   "current": 727.1,
+   "normal": 914.4,
+   "low": 614.0,
+   "high": 1190.2
+  },
+  {
+   "week": 26,
+   "current": 846.5,
+   "normal": 935.2,
+   "low": 673.2,
+   "high": 1171.3
+  },
+  {
+   "week": 27,
+   "current": 649.5,
+   "normal": 810.3,
+   "low": 336.7,
+   "high": 1108.1
+  },
+  {
+   "week": 28,
+   "current": 418.0,
+   "normal": 907.4,
+   "low": 121.4,
+   "high": 1713.7
+  },
+  {
+   "week": 29,
+   "current": 452.9,
+   "normal": 1265.9,
+   "low": 932.0,
+   "high": 1877.5
+  },
+  {
+   "week": 30,
+   "current": 974.1,
+   "normal": 1175.0,
+   "low": 233.4,
+   "high": 3243.1
+  },
+  {
+   "week": 31,
+   "current": 785.3,
+   "normal": 1125.2,
+   "low": 0.0,
+   "high": 2705.3
+  },
+  {
+   "week": 32,
+   "current": 459.8,
+   "normal": 1354.9,
+   "low": 825.6,
+   "high": 2526.2
+  },
+  {
+   "week": 33,
+   "current": 1260.2,
+   "normal": 1624.6,
+   "low": 265.5,
+   "high": 3064.8
+  },
+  {
+   "week": 34,
+   "current": 1798.0,
+   "normal": 2038.0,
+   "low": 733.9,
+   "high": 3183.1
+  },
+  {
+   "week": 35,
+   "current": 1750.9,
+   "normal": 3171.5,
+   "low": 446.1,
+   "high": 5678.9
+  },
+  {
+   "week": 36,
+   "current": 782.6,
+   "normal": 4054.3,
+   "low": 1281.0,
+   "high": 7486.9
+  },
+  {
+   "week": 37,
+   "current": 1014.3,
+   "normal": 4913.9,
+   "low": 1893.6,
+   "high": 12292.8
+  },
+  {
+   "week": 38,
+   "current": 3157.7,
+   "normal": 3420.4,
+   "low": 1119.0,
+   "high": 7059.6
+  },
+  {
+   "week": 39,
+   "current": 1807.9,
+   "normal": 2215.4,
+   "low": 788.3,
+   "high": 4780.8
+  },
+  {
+   "week": 40,
+   "current": 1052.3,
+   "normal": 2314.4,
+   "low": 814.4,
+   "high": 4704.7
+  },
+  {
+   "week": 41,
+   "current": 1451.8,
+   "normal": 2223.7,
+   "low": 685.8,
+   "high": 4808.2
+  },
+  {
+   "week": 42,
+   "current": 564.5,
+   "normal": 1692.4,
+   "low": 275.3,
+   "high": 4220.4
+  },
+  {
+   "week": 43,
+   "current": 704.4,
+   "normal": 1073.4,
+   "low": 338.2,
+   "high": 2426.4
+  },
+  {
+   "week": 44,
+   "current": 312.3,
+   "normal": 729.9,
+   "low": 65.0,
+   "high": 1825.8
+  },
+  {
+   "week": 45,
+   "current": null,
+   "normal": 336.7,
+   "low": 96.1,
+   "high": 561.1
+  },
+  {
+   "week": 46,
+   "current": null,
+   "normal": 506.9,
+   "low": 62.5,
+   "high": 1392.3
+  },
+  {
+   "week": 47,
+   "current": null,
+   "normal": 281.5,
+   "low": 103.3,
+   "high": 498.1
+  },
+  {
+   "week": 48,
+   "current": null,
+   "normal": 246.2,
+   "low": 11.7,
+   "high": 552.1
+  },
+  {
+   "week": 49,
+   "current": null,
+   "normal": 209.5,
+   "low": 13.4,
+   "high": 586.2
+  },
+  {
+   "week": 50,
+   "current": null,
+   "normal": 126.5,
+   "low": 16.6,
+   "high": 236.4
+  },
+  {
+   "week": 51,
+   "current": null,
+   "normal": 129.5,
+   "low": 7.5,
+   "high": 322.5
+  },
+  {
+   "week": 52,
+   "current": null,
+   "normal": 66.2,
+   "low": 1.6,
+   "high": 161.8
+  }
+ ],
+ "method": {
+  "quantity": "count",
+  "fit": "monthly",
+  "ratio_viirs_to_modis": 0.2456,
+  "monthly_ratio": {
+   "1": 0.3332,
+   "2": 0.3735,
+   "3": 0.8355,
+   "4": 0.4747,
+   "5": 0.3597,
+   "6": 0.3308,
+   "7": 0.3011,
+   "8": 0.2454,
+   "9": 0.2285,
+   "10": 0.2067,
+   "11": 0.2489,
+   "12": 0.2674
+  },
+  "weekly_error_median": 0.092,
+  "weekly_error_p90": 0.389,
+  "weeks_scored": 388,
+  "validation": "fit on 2012-2018, tested on 2019-2026, and the reverse; fire-season weeks (June to November) only"
+ },
+ "robustness": [
+  {
+   "label": "MODIS alone",
+   "pct_vs_normal": -38.0,
+   "rank": 10,
+   "compared_years": 11
+  },
+  {
+   "label": "VIIRS alone",
+   "pct_vs_normal": -43.3,
+   "rank": 11,
+   "compared_years": 11
+  },
+  {
+   "label": "fire power instead of counts",
+   "pct_vs_normal": -37.7,
+   "rank": 10,
+   "compared_years": 11
+  },
+  {
+   "label": "one ratio for the whole year",
+   "pct_vs_normal": -43.3,
+   "rank": 11,
+   "compared_years": 11
+  }
+ ],
+ "sources": [
+  "NASA FIRMS, MODIS Collection 6.1 active fire (Terra and Aqua), 2000 to present",
+  "NASA FIRMS, VIIRS S-NPP 375 m active fire, 2012 to present"
+ ],
+ "trust_note": "Cloud and smoke can hide fire. A hotspot is a satellite pixel (about 1 km² for MODIS, 0.14 km² for VIIRS), not a single fire or a burned area. Fire radiative power is an intensity proxy. Small or cool fires can be missed. The latest weeks are provisional."
+}

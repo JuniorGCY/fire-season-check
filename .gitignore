@@ -1,0 +1,6 @@
+__pycache__/
+.pytest_cache/
+dev_data/
+shot_*.png
+*.csv
+*.zip
