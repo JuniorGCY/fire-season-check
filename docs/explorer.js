@@ -9,7 +9,7 @@
   const SEQ = ["#fff7ec", "#fdd49e", "#fc8d59", "#d7301f", "#7f0000"];
   const DIV = ["#2166ac", "#67a9cf", "#f7f7f7", "#ef8a62", "#b2182b"];
 
-  let G, cells, NW, MOD, VII, dataThrough, firstMs;
+  let G, GEO = null, cells, NW, MOD, VII, dataThrough, firstMs;
   let rect, sel = [], series, cal, view = "count", cursor = null, range = { a: 1, b: 1 };
   let dragStart = null, cellTotals = null, mapPx = 12;
   const ML = 40, MT = 6, MB = 20;
@@ -123,6 +123,7 @@
       g.fillStyle = cellTotals[c] > 0 ? ramp(SEQ, Math.sqrt(cellTotals[c] / top)) : surface;
       g.fillRect(x, y, mapPx + 0.5, mapPx + 0.5);
     }
+    if (GEO) drawGeo(g, ink || "#000");
     if (rect) {
       const x = ML + (rect.w - G.origin.lon) / G.cell_degrees * mapPx;
       const y = MT + (G.rows - (rect.n - G.origin.lat) / G.cell_degrees) * mapPx;
@@ -139,6 +140,34 @@
     g.textAlign = "center"; g.textBaseline = "top";
     for (let lon = Math.ceil(G.origin.lon); lon <= lon1; lon++) {
       g.fillText(`${Math.abs(lon)}°W`, ML + (lon - G.origin.lon) / G.cell_degrees * mapPx, MT + G.rows * mapPx + 5);
+    }
+  }
+
+  // State outline and city labels (data/geo.json, IBGE). Optional: the map still works without them.
+  function drawGeo(g, ink) {
+    const halo = getComputedStyle(document.documentElement).getPropertyValue("--surface").trim() || "#ffffff";
+    const px = (lon) => ML + (lon - G.origin.lon) / G.cell_degrees * mapPx;
+    const py = (lat) => MT + (G.rows - (lat - G.origin.lat) / G.cell_degrees) * mapPx;
+    g.lineJoin = "round";
+    for (const [width, color] of [[3, halo], [1.2, ink]]) {
+      g.lineWidth = width; g.strokeStyle = color;
+      for (const ring of GEO.outline) {
+        g.beginPath();
+        ring.forEach(([lon, lat], i) => (i ? g.lineTo(px(lon), py(lat)) : g.moveTo(px(lon), py(lat))));
+        g.stroke();
+      }
+    }
+    g.font = "10.5px system-ui, sans-serif"; g.textAlign = "left"; g.textBaseline = "middle";
+    const taken = [];                        // label boxes already drawn: later names that would overlap are skipped
+    for (const p of GEO.places) {
+      const x = px(p.lon), y = py(p.lat), w = g.measureText(p.name).width;
+      const box = { x0: x + 5, x1: x + 5 + w, y0: y - 6, y1: y + 6 };
+      if (box.x1 > ML + G.cols * mapPx + 4 || taken.some((b) => box.x0 < b.x1 && box.x1 > b.x0 && box.y0 < b.y1 && box.y1 > b.y0)) continue;
+      taken.push(box);                       // a dot is drawn only together with its name
+      g.beginPath(); g.arc(x, y, 2.5, 0, 2 * Math.PI);
+      g.fillStyle = ink; g.fill(); g.lineWidth = 1.2; g.strokeStyle = halo; g.stroke();
+      g.lineWidth = 3; g.strokeStyle = halo; g.strokeText(p.name, box.x0, y);
+      g.fillStyle = ink; g.fillText(p.name, box.x0, y);
     }
   }
 
@@ -299,6 +328,84 @@
     download(`hotspots_by_cell_${areaTag()}.csv`, lines);
   }
 
+  // ---------- individual hotspots (binary files, one per year) ----------
+  const POINTS_LIMIT = 1500000;               // rows per CSV; more than this would exhaust the browser's memory
+  const yearCache = new Map();
+  let pointsIndex = null, pointsBusy = false;
+  const say = (text) => { $("pts-status").textContent = text; };
+
+  async function getJson(url) {
+    const res = await fetch(url, { cache: "no-cache" });
+    if (!res.ok) throw new Error(`${url}: ${res.status}`);
+    return res.json();
+  }
+  async function getYear(entry) {
+    if (!yearCache.has(entry.year)) {
+      const res = await fetch(`data/points/${entry.file}`);
+      if (!res.ok) throw new Error(`${entry.file}: ${res.status}`);
+      const buf = await res.arrayBuffer();
+      if (buf.byteLength !== entry.bytes) throw new Error(`${entry.file}: unexpected size`);
+      yearCache.set(entry.year, buf);
+    }
+    return yearCache.get(entry.year);
+  }
+  function columns(buf) {                      // layout is documented in src/fogo/points.py
+    const head = new DataView(buf), n = head.getUint32(4, true);
+    if (head.getUint32(0, true) !== 0x00315046) throw new Error("not a points file");   // bytes "FP1\0"
+    const u16 = (i) => new Uint16Array(buf, 8 + 2 * n * i, n);
+    return { n, lat: u16(0), lon: u16(1), day: u16(2), time: u16(3), frp: u16(4), sensor: new Uint8Array(buf, 8 + 10 * n, n) };
+  }
+
+  async function pointsCsv() {
+    if (pointsBusy || !series) return;
+    pointsBusy = true; $("csv-points").disabled = true;
+    try {
+      say("Preparing the individual hotspots…");
+      if (!pointsIndex) pointsIndex = await getJson("data/points/index.json");
+      const P = pointsIndex, from = Date.parse(iso(weekStartMs(range.a)) + "T00:00:00Z"), to = weekStartMs(range.b) + 6 * DAY;
+      const epoch = Date.parse(P.epoch + "T00:00:00Z");
+      const years = P.years.filter((y) => Date.UTC(y.year + 1, 0, 1) > from && Date.UTC(y.year, 0, 1) <= to);
+      if (!years.length) { say("There are no hotspots in the chosen dates."); return; }
+      const mb = years.filter((y) => !yearCache.has(y.year)).reduce((s, y) => s + y.bytes, 0) / 1e6;
+      if (mb > 0) say(`Downloading ${years.length} year file${years.length > 1 ? "s" : ""} (${mb.toFixed(1)} MB)…`);
+
+      const south = rect.s - 0.0005, north = rect.n + 0.0005, west = rect.w - 0.0005, east = rect.e + 0.0005;
+      const parts = [], out = [];
+      let rows = 0, weight = 0;
+      parts.push("date,time_utc,latitude,longitude,sensor,frp_mw,harmonized_weight,provisional\n");
+      const provisionalFrom = Date.parse(dataThrough + "T00:00:00Z") - PROVISIONAL_DAYS * DAY;
+      for (const entry of years) {
+        const c = columns(await getYear(entry));
+        for (let i = 0; i < c.n; i++) {
+          const ms = epoch + c.day[i] * DAY;
+          if (ms < from || ms > to) continue;
+          const lat = P.origin.lat + c.lat[i] / P.scale, lon = P.origin.lon + c.lon[i] / P.scale;
+          if (lat < south || lat > north || lon < west || lon > east) continue;
+          if (++rows > POINTS_LIMIT) {
+            say(`This area and period hold more than ${fmt.format(POINTS_LIMIT)} hotspots. Choose a smaller area or fewer dates.`);
+            return;
+          }
+          const w = Math.floor((ms - firstMs) / (7 * DAY)), viirs = c.sensor[i] === P.sensors.viirs;
+          const after = w >= G.viirs_from_week;
+          const wt = viirs ? (after ? ratioFor(isoYearWeek(w).month) : 0) : (after ? 0 : 1);
+          weight += wt;
+          const t = String(c.time[i]).padStart(4, "0");
+          out.push(`${iso(ms)},${t.slice(0, 2)}:${t.slice(2)},${lat.toFixed(3)},${lon.toFixed(3)},${viirs ? "VIIRS" : "MODIS"},${(c.frp[i] / P.frp_scale).toFixed(1)},${wt.toFixed(4)},${ms >= provisionalFrom}\n`);
+          if (out.length >= 20000) { parts.push(out.join("")); out.length = 0; }
+        }
+        await new Promise((r) => setTimeout(r, 0));      // let the page breathe between years
+      }
+      if (!rows) { say("No hotspots were detected in this area and period."); return; }
+      parts.push(out.join(""));
+      const url = URL.createObjectURL(new Blob(parts, { type: "text/csv" }));
+      const a = Object.assign(document.createElement("a"), { href: url, download: `hotspots_points_${areaTag()}.csv` });
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      say(`Done: ${fmt.format(rows)} individual hotspots. Sum of harmonized_weight: ${fmt.format(Math.round(weight))}.`);
+    } catch (e) {
+      say("Could not load the individual hotspots. Check your connection and press the button to try again.");
+    } finally { pointsBusy = false; $("csv-points").disabled = false; }
+  }
+
   // ---------- events ----------
   function cellAt(ev) {
     const box = $("map").getBoundingClientRect();
@@ -353,6 +460,7 @@
     });
     $("csv-weekly").onclick = () => series && weeklyCsv();
     $("csv-cells").onclick = () => series && cellsCsv();
+    $("csv-points").onclick = () => pointsCsv();
     window.addEventListener("resize", () => { if (cellTotals) drawMap(); });
   }
 
@@ -378,6 +486,7 @@
       if (!res.ok) throw new Error(res.status);
       G = await res.json();
     } catch (e) { setState("error", "Could not load the area data. Check your connection and try again."); return; }
+    try { GEO = await getJson("data/geo.json"); } catch (e) { GEO = null; }
     cells = G.rows * G.cols; NW = G.n_weeks; firstMs = Date.parse(G.first_week + "T00:00:00Z");
     if (!NW || !G.modis.n.length) { setState("empty", "No hotspot data is available for the explorer yet."); return; }
     MOD = dense(G.modis); VII = dense(G.viirs);

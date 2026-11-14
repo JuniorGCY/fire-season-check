@@ -6,7 +6,7 @@ A one-page answer to the question a fire manager already asks: **is this fire se
 below normal?** It combines two NASA satellite records (MODIS since 2000, VIIRS since 2012) into one
 weekly series with a measured error, and compares the current year with the previous ten.
 
-- Live page: see the link in the project submission (GitHub Pages, folder `docs/`).
+- Live page: https://juniorgcy.github.io/fire-season-check/ (GitHub Pages, folder `docs/`).
 - Region: Tocantins, Brazil. Intended users: firefighters, brigades and municipal civil defence.
 
 ## What it says today
@@ -47,12 +47,37 @@ in June (whole-year ratio: 0.246), so a monthly ratio cuts the error by about a 
 power agrees between the sensors much better on average (ratio about 1.04), as expected, because power
 does not depend on pixel size the way counts do. The headline uses the monthly count ratio.
 
+## Explore an area and a period
+
+Below the headline, the page lets a user pick a rectangle on the map (or type latitude and longitude) and a date
+range. It then shows the weekly series, a year-by-week calendar, the difference from the 10-year normal, and three
+CSV downloads, all computed in the browser from static files:
+
+| Download | What it holds |
+|---|---|
+| Weekly series | counts per week for the area: MODIS, VIIRS and the harmonized value |
+| By 28 km cell | counts per week and per 0.25 degree cell |
+| **Individual hotspots** | every detection in the area and dates: date, time (UTC), latitude, longitude, sensor, fire radiative power (MW), `harmonized_weight`, `provisional` |
+
+`harmonized_weight` is 1 for MODIS before VIIRS starts (2012-01-20) and the monthly MODIS/VIIRS ratio for VIIRS after
+it, so the sum of the column equals the harmonized count shown on the page (checked on 2026: 124,997 detections,
+weights sum to 25,353, the same total as the page summary). A single CSV is limited to 1.5 million rows.
+
+The map shows the state border and 15 municipality names from IBGE open data. Names sit at the centre of each
+municipality, which is close to the town but not exact.
+
 ## Limits (also shown on the page)
 
 - Cloud and smoke can hide fire. A hotspot is a satellite pixel, not one fire and not a burned area.
 - Fire radiative power is an intensity proxy. Small or cool fires can be missed.
 - The region is a bounding box (lat -13.5 to -5.1, lon -50.8 to -45.6) that also covers slivers of
-  neighbouring states. Municipal polygons are future work.
+  neighbouring states. The border is drawn for reference only: areas are still chosen as rectangles of 28 km cells,
+  and picking a municipality is future work.
+- Calibration was fitted for the whole state, so small areas (under 12 cells) have a larger error; the page warns.
+- Individual coordinates are rounded to about 100 m. The weekly and cell CSVs are counts, the individual CSV is
+  detections.
+- The covered region is only the Tocantins box. The pipeline reads any FIRMS box in principle, but the box is fixed in
+  `load.py` and no other region has been validated.
 - Near-real-time data has no `type` column, so static sources are not filtered in the last months.
 - Only weekly values were validated (table above), so single days are not shown.
 - Not an official warning system.
@@ -61,13 +86,24 @@ does not depend on pixel size the way counts do. The headline uses the monthly c
 
 ```bash
 pip install -r requirements.txt
-python -m pytest -q                      # 37 tests
+python -m pytest -q                      # 61 tests
 PYTHONPATH=src python -m fogo.cli build \
   --modis path/to/fire_archive_M-C61_*.csv path/to/fire_nrt_M-C61_*.csv \
   --viirs path/to/fire_archive_SV-C2_*.csv path/to/fire_nrt_SV-C2_*.csv \
-  --out docs/data/tocantins.json --grid-out docs/data/grid.json
+  --out docs/data/tocantins.json --grid-out docs/data/grid.json --points-out docs/data/points
 cd docs && python -m http.server 8765    # open http://localhost:8765
 ```
+
+State border and place names (IBGE open data, saved once as JSON; the page works without this file):
+
+```bash
+# state mesh, municipal mesh and municipality list from servicodados.ibge.gov.br (state code 17)
+PYTHONPATH=src python -m fogo.cli geo --state estado.json --towns municipios.json --names nomes.json \
+  --out docs/data/geo.json
+```
+
+On Windows without the `python` command, use `py -3`. The `%-d` date format is avoided on purpose because Windows
+does not support it.
 
 Data: NASA FIRMS Archive Download (https://firms.modaps.eosdis.nasa.gov/download/), CSV, MODIS C6.1 from
 2000-11-01 and VIIRS S-NPP 375 m from 2012-01-20, bounding box above. The raw CSVs (over 300 MB) are not
@@ -82,15 +118,19 @@ src/fogo/calibrate.py   MODIS<->VIIRS ratio, out-of-sample error, method compari
 src/fogo/series.py      one weekly series on the MODIS ruler
 src/fogo/indicators.py  normal, year-to-date headline, weekly curve
 src/fogo/export.py      the small JSON the page reads
+src/fogo/grid.py        0.25 degree cells x weeks per sensor (sparse JSON for the area explorer)
+src/fogo/points.py      every detection, one binary file per year (docs/data/points/, about 44 MB)
+src/fogo/geo.py         state border and place names for the map (docs/data/geo.json, from IBGE)
 src/fogo/cli.py         end to end build, plus robustness checks
 docs/                   static page (no backend, no keys): index.html + data/tocantins.json
-tests/                  37 tests (reading, weeks, calibration, indicators, export, end to end)
+tests/                  61 tests (reading, weeks, calibration, indicators, export, grid, points, geo, end to end)
 ```
 
 ## NASA data and references
 
 - NASA FIRMS, MODIS Collection 6.1 active fire (Terra and Aqua), 2000 to present.
 - NASA FIRMS, VIIRS S-NPP 375 m active fire (VNP14IMG), 2012 to present.
+- IBGE, malhas territoriais (state and municipal meshes) and municipality list, via the IBGE data API, for the border and place names.
 - Software: Python, pandas, NumPy, pytest. The page uses plain HTML, CSS and JavaScript, no external libraries.
 - Context on Tocantins fire season used to frame the problem: IPAM report on forest fires in Tocantins;
   the state fire plan (PPCDIF-TO) goal of reducing hotspots against the 10-year average.

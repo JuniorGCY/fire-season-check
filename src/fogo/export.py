@@ -24,6 +24,11 @@ TRUST_NOTE = (
 )
 
 
+def _long_date(day: pd.Timestamp) -> str:
+    """'November 1, 2026'. Avoids strftime's %-d, which Windows does not support."""
+    return f"{day.strftime('%B')} {day.day}, {day.year}"
+
+
 def _clean(value: Any) -> Any:
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
         return None
@@ -55,7 +60,7 @@ def build_payload(
             "text": headline.text(
                 region,
                 unit="hotspots" if calibration.quantity == "count" else "fire power",
-                through=(last_monday + pd.Timedelta(days=6)).strftime("%B %-d, %Y"),
+                through=_long_date(last_monday + pd.Timedelta(days=6)),
             ),
             "year": headline.year,
             "last_week": headline.last_week,

@@ -118,9 +118,10 @@
           <button class="ghost" type="button" data-preset="-12,-8,-50.8,-48.8">Araguaia side (approx.)</button>
           <button class="ghost" type="button" data-preset="-11.5,-9.5,-47.5,-45.6">Jalapão side (approx.)</button>
         </div>
-        <canvas id="map" role="img" aria-label="Map of the area, each square is a 28 km cell shaded by hotspots in the chosen period"></canvas>
+        <canvas id="map" role="img" aria-label="Map of Tocantins with the state outline and main towns. Each square is a 28 km cell shaded by hotspots in the chosen period. Use the number boxes below to set the area with the keyboard."></canvas>
         <p class="meta" style="margin:0 0 8px">Each square is about 28 km. Darker red means more hotspots in the dates you picked; grey means none.
-          The box also covers slivers of neighbouring states.</p>
+          The black line is the state border and the dots are municipalities, placed at the centre of each municipality (approximate).
+          The box also covers slivers of neighbouring states. Border and names: IBGE.</p>
         <div class="row" role="group" aria-label="Area corners in decimal degrees">
           <div><label for="in-n">North (lat)</label><input id="in-n" type="text" inputmode="decimal"></div>
           <div><label for="in-s">South (lat)</label><input id="in-s" type="text" inputmode="decimal"></div>
@@ -156,9 +157,13 @@
         <p style="margin:12px 0 0;display:flex;flex-wrap:wrap;gap:10px">
           <button id="csv-weekly" type="button">Download weekly series (CSV)</button>
           <button id="csv-cells" class="ghost" type="button">Download hotspots by 28 km cell (CSV)</button>
+          <button id="csv-points" class="ghost" type="button">Download individual hotspots (CSV)</button>
         </p>
-        <p class="meta">The files list hotspot counts per week and per cell for your area and dates, not single detections.
-          Point-level files come from <a href="https://firms.modaps.eosdis.nasa.gov/download/" rel="noopener">NASA FIRMS</a>.
+        <p id="pts-status" class="meta" role="status" aria-live="polite" style="margin:6px 0 0"></p>
+        <p class="meta">The first two files list counts per week and per cell. The individual file lists every detection in your area and dates:
+          date, time (UTC), latitude, longitude, sensor and fire radiative power (MW). Coordinates are rounded to about 100 m.
+          The last column, <em>harmonized_weight</em>, is 1 for MODIS before 2012 and the monthly MODIS/VIIRS ratio for VIIRS afterwards,
+          so its sum is the harmonized count shown above. Original files: <a href="https://firms.modaps.eosdis.nasa.gov/download/" rel="noopener">NASA FIRMS</a>.
           Hotspots are satellite detections, not confirmed fires.</p>
       </div>
     </section>
