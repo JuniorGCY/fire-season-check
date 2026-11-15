@@ -55,7 +55,7 @@ TOCANTINS = BBox(min_lat=-13.5, max_lat=-5.1, min_lon=-50.8, max_lon=-45.6)
 
 def read_firms_csv(path: Path, box: BBox) -> pd.DataFrame:
     """Return one row per detection inside `box`: key columns, `day` (datetime) and `frp`."""
-    wanted = {*REQUIRED_COLUMNS, *KEY_COLUMNS, "type", "frp"}  # skip the other columns: files are large
+    wanted = {*REQUIRED_COLUMNS, *KEY_COLUMNS, "type", "frp", "daynight"}  # skip the others: files are large
     frame = pd.read_csv(path, dtype=str, keep_default_na=False, usecols=lambda name: name in wanted)
     missing = [c for c in REQUIRED_COLUMNS if c not in frame.columns]
     if missing:
@@ -73,6 +73,8 @@ def read_firms_csv(path: Path, box: BBox) -> pd.DataFrame:
 
     key_columns = [c for c in KEY_COLUMNS if c in frame.columns]
     result = frame.loc[keep, key_columns].copy()
+    if "daynight" in frame.columns:
+        result["daynight"] = frame.loc[keep, "daynight"]
     result["day"] = day[keep]
     result["lat"] = lat[keep]
     result["lon"] = lon[keep]

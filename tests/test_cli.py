@@ -48,6 +48,26 @@ def test_data_end_is_where_both_sensors_reach(tmp_path):
     assert payload["curve"][41]["current"] is None
 
 
+def test_series_continues_on_viirs_after_modis_stops(tmp_path):
+    # MODIS is retiring: here it stops at the end of 2024 while VIIRS goes on to October 2025.
+    modis = _write_sensor(tmp_path / "m.csv", 2000, "2024-12-30", 20, "Terra")
+    viirs = _write_sensor(tmp_path / "v.csv", 2012, "2025-10-13", 80, "SNPP")
+    payload = run([modis], [viirs], tmp_path / "x.json")
+    assert payload["headline"]["year"] == 2025 and payload["headline"]["last_week"] == 41
+    assert payload["headline"]["pct_vs_normal"] == pytest.approx(0, abs=0.2)
+    assert payload["method"]["modis_last_day"] == "2024-12-30"
+    assert payload["method"]["viirs_last_day"] == "2025-10-13"
+    # "MODIS alone" cannot answer for weeks MODIS no longer covers, so that check is left out
+    assert "MODIS alone" not in [c["label"] for c in payload["robustness"]]
+
+
+def test_headline_carries_the_median_comparison(tmp_path):
+    modis = _write_sensor(tmp_path / "m.csv", 2000, "2025-10-13", 20, "Terra")
+    viirs = _write_sensor(tmp_path / "v.csv", 2012, "2025-10-13", 80, "SNPP")
+    payload = run([modis], [viirs], tmp_path / "x.json")
+    assert payload["headline"]["pct_vs_median"] == pytest.approx(0, abs=0.2)
+
+
 def test_too_few_overlap_years_stops_with_a_clear_message(tmp_path):
     modis = _write_sensor(tmp_path / "m.csv", 2020, "2025-10-13", 20, "Terra")
     viirs = _write_sensor(tmp_path / "v.csv", 2024, "2025-10-13", 80, "SNPP")

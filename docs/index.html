@@ -154,6 +154,25 @@
           “Normal” is the average of the previous 10 years for the same week.</p>
         <output id="cal-readout" for="calendar" aria-live="polite"></output>
 
+        <h3 style="font-size:1rem;margin:18px 0 4px">By month</h3>
+        <p id="month-now" style="margin:0 0 8px;font-weight:600" aria-live="polite"></p>
+        <div id="months">
+          <div class="cal-scroll" tabindex="0" role="group" aria-label="Monthly calendar, one row per year and one column per month. Use the arrow keys to move between months.">
+            <div class="cal-svg"></div>
+          </div>
+        </div>
+        <p class="meta">Same colours as the weekly calendar. A week belongs to the month of its Thursday.
+          Months are compared per week with the <strong>median</strong> of the same month in the previous 10 years, so months with 4 and 5 weeks compare fairly.
+          Dashed outline: partial month, or provisional (near-real-time data, may change).</p>
+        <output id="month-readout" for="months" aria-live="polite"></output>
+
+        <p style="margin:12px 0 0;display:flex;flex-wrap:wrap;gap:10px">
+          <button id="png-calendar" class="ghost" type="button">Download weekly calendar (PNG)</button>
+          <button id="png-months" class="ghost" type="button">Download monthly calendar (PNG)</button>
+          <button id="png-map" class="ghost" type="button">Download map (PNG)</button>
+          <button id="csv-monthly" class="ghost" type="button">Download monthly series (CSV)</button>
+        </p>
+
         <p style="margin:12px 0 0;display:flex;flex-wrap:wrap;gap:10px">
           <button id="csv-weekly" type="button">Download weekly series (CSV)</button>
           <button id="csv-cells" class="ghost" type="button">Download hotspots by 28 km cell (CSV)</button>
@@ -172,6 +191,7 @@
       <h2 id="trust-title" style="font-size:1.05rem;margin:0 0 6px">How much to trust this</h2>
       <p id="robust" style="margin:0 0 8px"></p>
       <p id="error" style="margin:0 0 8px"></p>
+      <p id="schedule" style="margin:0 0 8px"></p>
       <p id="trust" style="margin:0"></p>
       <details>
         <summary>How the two satellites are combined</summary>
@@ -291,7 +311,10 @@
       { above: "Above recent years", within: "Within recent years", below: "Below recent years" }[h.status];
     $("status").textContent = ranked;
     $("headline").textContent = h.text;
-    $("through").textContent = `Satellite data through ${data.data_through}. Rank ${h.rank} of ${h.compared_years} years for the same weeks (1 = most ${data.unit}).`;
+    const pctText = (v) => `${v >= 0 ? "+" : "−"}${Math.abs(Math.round(v))}%`;
+    const median = h.pct_vs_median == null ? "" :
+      ` Against the median of the same ${h.compared_years - 1} years (not pulled by one extreme year): ${pctText(h.pct_vs_median)}.`;
+    $("through").textContent = `Satellite data through ${data.data_through}. Rank ${h.rank} of ${h.compared_years} years for the same weeks (1 = most ${data.unit}).${median}`;
     $("synthetic").hidden = !data.synthetic;
     $("l-now").textContent = `${h.year}`;
 
@@ -312,8 +335,17 @@
         `The answer stays between ${f(lo)} and ${f(hi)}.${rankNote}`;
     } else { $("robust").hidden = true; }
     $("trust").textContent = data.trust_note;
+    const o = data.observation, share = (v) => `${Math.round(v * 100)}%`;
+    if (o && o.ratio_day != null && o.ratio_night != null) {
+      $("schedule").textContent = `The satellites also look at different hours. From ${o.from.slice(0, 4)} to ${o.to.slice(0, 4)}, ` +
+        `${share(o.modis_day_share)} of MODIS hotspots and ${share(o.viirs_day_share)} of VIIRS hotspots were seen on daytime passes, ` +
+        `and MODIS saw ${o.ratio_day.toFixed(2)} hotspots per VIIRS hotspot by day but ${o.ratio_night.toFixed(2)} by night. ` +
+        `Our ruler uses one ratio per month for day and night together, which is part of the error above.`;
+    } else { $("schedule").hidden = true; }
+    const ends = m.modis_last_day && m.viirs_last_day ?
+      ` MODIS data runs to ${m.modis_last_day} and VIIRS to ${m.viirs_last_day}. After 2012 the series is VIIRS on the MODIS ruler, so it keeps going when the ageing MODIS satellites stop.` : "";
     $("method").textContent = `VIIRS counts are multiplied by ${m.ratio_viirs_to_modis} (${m.fit} fit) to sit on the MODIS ruler. ` +
-      `Before VIIRS existed (January 2012) only MODIS is used. Validation: ${m.validation}.`;
+      `Before VIIRS existed (January 2012) only MODIS is used. Validation: ${m.validation}.${ends}`;
     $("sources").textContent = `Sources: ${data.sources.join("; ")}.`;
 
     const rows = data.curve.map((r) => `<tr><td>${r.week}</td><td>${r.current == null ? "–" : fmt.format(r.current)}</td>` +

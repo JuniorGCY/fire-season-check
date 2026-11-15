@@ -3,7 +3,8 @@
 "Normal" is the average of the previous N complete years (default 10) for the same
 weeks, the same yardstick Tocantins uses in its state fire plan (goal: below the 10-year
 average). The comparison is cumulative, year to date, so one noisy week cannot flip it.
-ISO week 53 is ignored so every year has 52 comparable weeks.
+ISO week 53 is ignored so every year has 52 comparable weeks. The median of the same years
+is reported too (the challenge asks for comparisons with the historical median).
 """
 
 from __future__ import annotations
@@ -47,6 +48,8 @@ class Headline:
     compared_years: int  # number of years in the comparison, including this one
     years_used: tuple[int, ...]
     provisional: bool
+    median_ytd: float = float("nan")      # median of the same prior years: not pulled by one extreme year
+    pct_vs_median: float = float("nan")
 
     def text(self, region: str, unit: str = "hotspots", through: str | None = None) -> str:
         direction = "more" if self.pct_vs_normal >= 0 else "fewer"
@@ -91,8 +94,10 @@ def headline(
 
     last_monday = pd.Timestamp.fromisocalendar(year, last_week, 1)
     provisional = final_until is not None and last_monday + pd.Timedelta(days=6) > final_until
+    median = float(cumulative.median())
+    pct_median = (ytd / median - 1.0) * 100.0 if median > 0 else float("nan")
     return Headline(year, last_week, ytd, normal, pct, status, rank, len(prior) + 1,
-                    tuple(prior), provisional)
+                    tuple(prior), provisional, median, pct_median)
 
 
 def weekly_curve(series: pd.Series, year: int, n_years: int = 10, min_years: int = 5) -> pd.DataFrame:

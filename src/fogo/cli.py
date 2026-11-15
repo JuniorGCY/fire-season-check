@@ -18,7 +18,8 @@ from .indicators import InsufficientHistory, headline
 from .geo import DEFAULT_PLACES, build_geo
 from .load import TOCANTINS, BBox, read_firms
 from .points import build_points
-from .series import harmonize
+from .schedule import observation_summary
+from .series import VIIRS_SNPP_START, harmonize
 from .weekly import weekly_series
 
 PROVISIONAL_DAYS = 150  # FIRMS replaces near-real-time data with final data after ~5 months
@@ -30,12 +31,13 @@ def _split_years(years: list[int]) -> tuple[list[int], list[int]]:
 
 
 def _robustness_checks(modis: pd.DataFrame, viirs: pd.DataFrame, year: int, last_week: int,
-                       data_end: pd.Timestamp) -> list[dict]:
+                       data_end: pd.Timestamp, modis_covers: bool = True) -> list[dict]:
     """Recompute the headline in other defensible ways, so the page can show how much the
-    answer depends on our choices (no calibration at all, fire power, a single ratio)."""
+    answer depends on our choices (no calibration at all, fire power, a single ratio).
+    "MODIS alone" is skipped once MODIS no longer covers the period (it would read as zero fire)."""
     final_until = data_end - pd.Timedelta(days=PROVISIONAL_DAYS)
     candidates = {
-        "MODIS alone": lambda: modis["count"],
+        **({"MODIS alone": lambda: modis["count"]} if modis_covers else {}),
         "VIIRS alone": lambda: viirs["count"],
         "fire power instead of counts": lambda: harmonize(
             modis, viirs, fit(modis, viirs, "frp", "monthly"))["value"],
@@ -72,9 +74,11 @@ def run(
                              f"lat {box.min_lat}..{box.max_lat}, lon {box.min_lon}..{box.max_lon}: "
                              "check the box and the CSV files")
     modis, viirs = weekly_series(modis_detections), weekly_series(viirs_detections)
-    # The harmonized series uses VIIRS after 2012, so it is only valid up to the date BOTH sensors
-    # reach; otherwise the last weeks would count zero VIIRS hotspots.
-    data_end = min(modis_detections["day"].max(), viirs_detections["day"].max())
+    # After 2012 the harmonized series is VIIRS on the MODIS ruler, so it ends where VIIRS ends:
+    # later weeks would count zero VIIRS hotspots. It does NOT need MODIS to keep flying, so the
+    # series continues when MODIS (Terra/Aqua, near the end of their lives) stops.
+    modis_last, viirs_last = modis_detections["day"].max(), viirs_detections["day"].max()
+    data_end = viirs_last
 
     overlap_years = sorted(set((modis.index + pd.Timedelta(days=3)).year)
                            & set((viirs.index + pd.Timedelta(days=3)).year))
@@ -93,19 +97,24 @@ def run(
 
     calibration = fit(modis, viirs, quantity, kind)  # final fit on every overlapping year
     harmonized = harmonize(modis, viirs, calibration)["value"]
-    # Keep only complete weeks that both sensors cover: later weeks would show a false drop to zero.
+    # Keep only complete weeks up to the data end: later weeks would show a false drop to zero.
     harmonized = harmonized[harmonized.index + pd.Timedelta(days=6) <= data_end]
 
     last_complete_week = (data_end - pd.Timedelta(days=6)).isocalendar()
     year, last_week = int(last_complete_week.year), int(last_complete_week.week)
     result = headline(harmonized, year, last_week, final_until=data_end - pd.Timedelta(days=PROVISIONAL_DAYS))
 
-    checks = _robustness_checks(modis, viirs, year, last_week, data_end)
+    checks = _robustness_checks(modis, viirs, year, last_week, data_end,
+                                modis_covers=modis_last >= data_end)
+    observation = observation_summary(modis_detections, viirs_detections, VIIRS_SNPP_START,
+                                      min(modis_last, viirs_last))
 
     validation = (f"fit on {first_half[0]}-{first_half[-1]}, tested on {second_half[0]}-{second_half[-1]}, "
                   f"and the reverse; fire-season weeks (June to November) only")
     payload = build_payload(harmonized, result, calibration, error, region, validation, synthetic,
-                            checks=checks)
+                            checks=checks, observation=observation,
+                            sensors_last_day={"modis_last_day": modis_last.strftime("%Y-%m-%d"),
+                                              "viirs_last_day": viirs_last.strftime("%Y-%m-%d")})
     write_payload(payload, out)
     if grid_out is not None:
         grid = build_grid(modis_detections, viirs_detections, box, harmonized.index.max(), calibration)

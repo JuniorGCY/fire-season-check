@@ -10,7 +10,7 @@
   const DIV = ["#2166ac", "#67a9cf", "#f7f7f7", "#ef8a62", "#b2182b"];
 
   let G, GEO = null, cells, NW, MOD, VII, dataThrough, firstMs;
-  let rect, sel = [], series, cal, view = "count", cursor = null, range = { a: 1, b: 1 };
+  let rect, sel = [], series, cal, months, view = "count", cursor = null, mcursor = null, range = { a: 1, b: 1 };
   let dragStart = null, cellTotals = null, mapPx = 12;
   const ML = 40, MT = 6, MB = 20;
 
@@ -37,6 +37,10 @@
     lon: G.origin.lon + ((c % G.cols) + 0.5) * G.cell_degrees,
   });
   const fix = (v) => (Math.round(v * 100) / 100).toFixed(2);
+  const median = (values) => {
+    const s = values.slice().sort((a, b) => a - b), h = Math.floor(s.length / 2);
+    return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2;
+  };
 
   function dense(part) {
     const a = new Float32Array(NW * cells);
@@ -86,21 +90,120 @@
     const lastFinal = Date.parse(dataThrough + "T00:00:00Z") - PROVISIONAL_DAYS * DAY;
     for (let w = 1; w < NW; w++) {
       const { year, week } = isoYearWeek(w), value = series.value[w];
-      let normal = NaN;
+      let normal = NaN, med = NaN;
       if (week <= 52) {
         const prev = [];
         for (let y = year - NORMAL_YEARS; y < year; y++) {
           const r = rows.get(y);
           if (r && !Number.isNaN(r[week])) prev.push(r[week]);
         }
-        if (prev.length >= MIN_YEARS) normal = prev.reduce((a, b) => a + b, 0) / prev.length;
+        if (prev.length >= MIN_YEARS) { normal = prev.reduce((a, b) => a + b, 0) / prev.length; med = median(prev); }
       }
       const anomaly = normal >= MIN_NORMAL ? value / normal - 1 : NaN;
-      cellsOut.push({ w, year, week, value, normal, anomaly, provisional: weekStartMs(w) + 6 * DAY > lastFinal });
+      cellsOut.push({ w, year, week, value, normal, median: med, anomaly, provisional: weekStartMs(w) + 6 * DAY > lastFinal });
     }
     const positive = cellsOut.map((c) => c.value).filter((v) => v > 0).sort((a, b) => a - b);
     const vmax = positive.length ? positive[Math.floor(positive.length * 0.98)] : 1;
-    cal = { cells: cellsOut, minY, maxY, vmax: Math.max(vmax, 1), byKey: new Map(cellsOut.map((c) => [c.year * 100 + c.week, c])) };
+    cal = { cells: cellsOut, rows, minY, maxY, vmax: Math.max(vmax, 1), byKey: new Map(cellsOut.map((c) => [c.year * 100 + c.week, c])) };
+  }
+
+  // ---------- months (a week belongs to the month of its Thursday, like ISO weeks to years) ----------
+  const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const thursdaysIn = (y, m) => {           // m is 1..12
+    let n = 0;
+    for (let d = 1; d <= new Date(Date.UTC(y, m, 0)).getUTCDate(); d++) if (new Date(Date.UTC(y, m - 1, d)).getUTCDay() === 4) n++;
+    return n;
+  };
+  function buildMonths() {
+    const byKey = new Map();
+    for (const c of cal.cells) {
+      const thu = new Date(weekStartMs(c.w) + 3 * DAY), year = thu.getUTCFullYear(), month = thu.getUTCMonth() + 1;
+      const key = year * 100 + month;
+      if (!byKey.has(key)) byKey.set(key, { year, month, weeks: 0, total: 0, provisional: false });
+      const g = byKey.get(key);
+      g.weeks++; g.total += c.value; g.provisional = g.provisional || c.provisional;
+    }
+    const list = [...byKey.values()].sort((a, b) => a.year - b.year || a.month - b.month);
+    for (const g of list) {
+      g.expected = thursdaysIn(g.year, g.month);
+      g.complete = g.weeks === g.expected;
+      g.perWeek = g.total / g.weeks;
+      const prev = [];
+      for (let y = g.year - NORMAL_YEARS; y < g.year; y++) {
+        const p = byKey.get(y * 100 + g.month);
+        if (p && p.complete) prev.push(p.perWeek);
+      }
+      g.median = prev.length >= MIN_YEARS ? median(prev) : NaN;
+      g.anomaly = g.median >= MIN_NORMAL ? g.perWeek / g.median - 1 : NaN;
+    }
+    const totals = list.filter((g) => g.complete).map((g) => g.total).sort((a, b) => a - b);
+    const vmax = totals.length ? totals[Math.floor(totals.length * 0.98)] : 1;
+    months = { list, byKey, minY: list[0].year, maxY: list[list.length - 1].year, vmax: Math.max(vmax, 1) };
+  }
+
+  function monthText(g) {
+    const name = `${MONTH_NAMES[g.month - 1]} ${g.year}`;
+    let text = g.complete ? `${name}: ${fmt.format(g.total)} hotspots (${fmt.format(g.perWeek)} per week).`
+      : `${name}, ${g.weeks} of ${g.expected} weeks so far: ${fmt.format(g.total)} hotspots (${fmt.format(g.perWeek)} per week).`;
+    if (!Number.isNaN(g.anomaly)) {
+      const pct = Math.round(g.anomaly * 100);
+      text += ` Median of the same month in the previous ${NORMAL_YEARS} years: ${fmt.format(g.median)} per week, so ${pct >= 0 ? "+" : "−"}${Math.abs(pct)}%.`;
+    } else if (!Number.isNaN(g.median)) text += " Too few hotspots in this month historically to compare.";
+    else text += " Not enough earlier years to compare.";
+    if (g.provisional) text += " Provisional: includes near-real-time data.";
+    return text;
+  }
+
+  function monthsHeadline() {
+    const latest = months.list[months.list.length - 1];
+    const byMonth = Array.from({ length: 12 }, () => []), byYear = new Map();
+    for (const g of months.list) {
+      if (!g.complete) continue;
+      byMonth[g.month - 1].push(g.total);
+      byYear.set(g.year, (byYear.get(g.year) || []).concat([g.total]));
+    }
+    const avg = byMonth.map((v) => (v.length ? v.reduce((a, b) => a + b, 0) / v.length : -1));
+    const busiest = avg.indexOf(Math.max(...avg));
+    let topYear = null, topTotal = -1;
+    for (const [y, v] of byYear) {
+      const t = v.reduce((a, b) => a + b, 0);
+      if (v.length === 12 && t > topTotal) { topYear = y; topTotal = t; }
+    }
+    let text = `Latest month: ${monthText(latest)}`;
+    if (busiest >= 0 && avg[busiest] > 0) text += ` On average the busiest month here is ${MONTH_NAMES[busiest]}`;
+    if (topYear) text += `, and the busiest full year was ${topYear} (${fmt.format(topTotal)} hotspots).`;
+    else text += ".";
+    $("month-now").textContent = text;
+  }
+
+  function drawMonths() {
+    const host = $("months"), L = 40, T = 20, cw = 26, ch = 12, years = months.maxY - months.minY + 1;
+    const W = L + 12 * cw + 4, H = T + years * ch + 4;
+    let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Monthly calendar of hotspots, one row per year">`;
+    for (let m = 0; m < 12; m++) svg += `<text x="${L + m * cw + cw / 2}" y="12" text-anchor="middle">${MONTHS[m].slice(0, 1)}</text>`;
+    for (let y = months.minY; y <= months.maxY; y++) {
+      if ((y - months.minY) % 2 === 0) svg += `<text x="${L - 6}" y="${T + (y - months.minY) * ch + 10}" text-anchor="end">${y}</text>`;
+    }
+    for (const g of months.list) {
+      const x = L + (g.month - 1) * cw, y = T + (g.year - months.minY) * ch;
+      let fill;
+      if (view === "count") fill = ramp(SEQ, g.complete ? Math.sqrt(g.total / months.vmax) : Math.sqrt(g.perWeek * g.expected / months.vmax));
+      else fill = Number.isNaN(g.anomaly) ? "none" : ramp(DIV, (Math.max(-1, Math.min(1, g.anomaly)) + 1) / 2);
+      const dash = !g.complete || g.provisional ? ' stroke="var(--ink)" stroke-width=".6" stroke-dasharray="2 1.5"' : "";
+      const none = fill === "none" ? ' stroke="var(--line)" stroke-width=".5"' : "";
+      svg += `<rect x="${x}" y="${y}" width="${cw - 1}" height="${ch - 1}" fill="${fill}"${dash}${none}/>`;
+    }
+    if (mcursor) {
+      const x = L + (mcursor.month - 1) * cw, y = T + (mcursor.year - months.minY) * ch;
+      svg += `<rect x="${x - 1}" y="${y - 1}" width="${cw + 1}" height="${ch + 1}" fill="none" stroke="var(--focus)" stroke-width="2"/>`;
+    }
+    host.querySelector(".cal-svg").innerHTML = svg + "</svg>";
+  }
+
+  function monthReadout() {
+    if (!mcursor) { $("month-readout").textContent = "Select a month in the monthly calendar, or use the arrow keys."; return; }
+    const g = months.byKey.get(mcursor.year * 100 + mcursor.month);
+    $("month-readout").textContent = g ? monthText(g) : "No data for this month.";
   }
 
   // ---------- drawing ----------
@@ -225,6 +328,7 @@
       text += ` Average of the previous ${NORMAL_YEARS} years for this week: ${fmt.format(c.normal)}`;
       text += Number.isNaN(c.anomaly) ? ". Too few hotspots to compare." :
         `, so ${c.anomaly >= 0 ? "+" : "−"}${Math.abs(Math.round(c.anomaly * 100))}%.`;
+      if (!Number.isNaN(c.median)) text += ` Median of those years: ${fmt.format(c.median)}.`;
     } else text += ". Not enough earlier years to compute an average.";
     if (c.provisional) text += " Provisional: near-real-time data, may change.";
     $("cal-readout").textContent = text;
@@ -241,7 +345,26 @@
     let text = `${fmt.format(total)} hotspots in ${weeks} weeks (${iso(weekStartMs(range.a))} to ${iso(weekStartMs(range.b) + 6 * DAY)}) over ${area}.`;
     if (normalTotal >= 10) {
       const pct = Math.round((compared / normalTotal - 1) * 100);
-      text += ` For the same weeks, that is ${pct >= 0 ? "+" : "−"}${Math.abs(pct)}% against the average of the previous ${NORMAL_YEARS} years.`;
+      text += ` For the same weeks, that is ${pct >= 0 ? "+" : "−"}${Math.abs(pct)}% against the average of the previous ${NORMAL_YEARS} years`;
+      // Median: total of the same weeks k years earlier, for each k = 1..10 that has all those weeks.
+      const priorTotals = [];
+      for (let k = 1; k <= NORMAL_YEARS; k++) {
+        let t = 0, ok = true;
+        for (const c of cal.cells) {
+          if (c.w < range.a || c.w > range.b || c.week > 52) continue;
+          const r = cal.rows.get(c.year - k), v = r ? r[c.week] : NaN;
+          if (Number.isNaN(v)) { ok = false; break; }
+          t += v;
+        }
+        if (ok) priorTotals.push(t);
+      }
+      const med = priorTotals.length >= MIN_YEARS ? median(priorTotals) : NaN;
+      if (med >= 10) {
+        let now = 0;
+        for (const c of cal.cells) if (c.w >= range.a && c.w <= range.b && c.week <= 52) now += c.value;
+        const pm = Math.round((now / med - 1) * 100);
+        text += ` and ${pm >= 0 ? "+" : "−"}${Math.abs(pm)}% against their median.`;
+      } else text += ".";
     } else if (total === 0) text += " No hotspots were detected here in this period.";
     else text += " Too little history in this area and period to compare with an average.";
     $("summary").textContent = text;
@@ -262,9 +385,11 @@
     sel = cellsInRect(rect);
     series = computeSeries();
     buildCalendar();
+    buildMonths();
     updateTotals();
     $("area").textContent = `Area used: latitude ${fix(rect.s)} to ${fix(rect.n)}, longitude ${fix(rect.w)} to ${fix(rect.e)}.`;
     summary(); drawMap(); drawCalendar(); readout();
+    monthsHeadline(); drawMonths(); monthReadout();
   }
 
   function readInputs() {
@@ -326,6 +451,53 @@
       }
     }
     download(`hotspots_by_cell_${areaTag()}.csv`, lines);
+  }
+
+  function monthlyCsv() {
+    const lines = ["year,month,weeks,complete,harmonized_hotspots,per_week,median_per_week_previous_10_years,vs_median,provisional"];
+    const from = isoYearWeek(range.a), to = isoYearWeek(range.b);
+    for (const g of months.list) {
+      if (g.year * 100 + g.month < from.year * 100 + from.month || g.year * 100 + g.month > to.year * 100 + to.month) continue;
+      lines.push([g.year, g.month, g.weeks, g.complete, g.total.toFixed(2), g.perWeek.toFixed(2),
+        Number.isNaN(g.median) ? "" : g.median.toFixed(2), Number.isNaN(g.anomaly) ? "" : g.anomaly.toFixed(3), g.provisional].join(","));
+    }
+    download(`monthly_hotspots_${areaTag()}.csv`, lines);
+  }
+
+  // ---------- images (PNG) with a caption that says what, where and from which data ----------
+  function caption(what) {
+    return [`Fire Season Check: ${what}, ${iso(weekStartMs(range.a))} to ${iso(weekStartMs(range.b) + 6 * DAY)}`,
+      `Area: lat ${fix(rect.s)} to ${fix(rect.n)}, lon ${fix(rect.w)} to ${fix(rect.e)}. NASA FIRMS MODIS + VIIRS, harmonized to the MODIS ruler.`];
+  }
+  function withCaption(source, w, h, what, name) {
+    const css = getComputedStyle(document.documentElement), scale = Math.max(1, w / 900);
+    const lines = caption(what), pad = 12 * scale, lineH = 16 * scale;
+    const out = document.createElement("canvas");
+    out.width = Math.max(w, 700 * scale); out.height = h + pad * 2 + lineH * lines.length;
+    const g = out.getContext("2d");
+    g.fillStyle = css.getPropertyValue("--surface").trim() || "#fff"; g.fillRect(0, 0, out.width, out.height);
+    g.drawImage(source, 0, 0, w, h);
+    g.fillStyle = css.getPropertyValue("--ink").trim() || "#000"; g.font = `${12 * scale}px system-ui, sans-serif`; g.textBaseline = "top";
+    lines.forEach((t, i) => g.fillText(t, pad, h + pad + i * lineH));
+    out.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob), a = Object.assign(document.createElement("a"), { href: url, download: name });
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }, "image/png");
+  }
+  async function svgPng(svgEl, what, name) {
+    if (!svgEl) return;
+    const css = getComputedStyle(document.documentElement), vb = svgEl.viewBox.baseVal, scale = 2;
+    let src = new XMLSerializer().serializeToString(svgEl)
+      .replace(/var\((--[\w-]+)\)/g, (_, v) => css.getPropertyValue(v).trim() || "#000");
+    if (!src.includes("xmlns=")) src = src.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"');
+    const bg = css.getPropertyValue("--surface").trim() || "#fff", ink = css.getPropertyValue("--muted").trim() || "#555";
+    src = src.replace(/(<svg[^>]*>)/, `$1<rect width="100%" height="100%" fill="${bg}"/><style>text{font:10px system-ui,sans-serif;fill:${ink}}</style>`)
+      .replace(/width="\d+" height="\d+"/, `width="${vb.width * scale}" height="${vb.height * scale}"`);
+    const img = new Image();
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(src);
+    try { await img.decode(); } catch (e) { return; }
+    withCaption(img, vb.width * scale, vb.height * scale, what, name);
   }
 
   // ---------- individual hotspots (binary files, one per year) ----------
@@ -439,8 +611,33 @@
     }));
     document.querySelectorAll("input[name=view]").forEach((r) => r.addEventListener("change", () => {
       view = document.querySelector("input[name=view]:checked").value;
-      $("seq-wrap").hidden = view !== "count"; $("div-wrap").hidden = view === "count"; drawCalendar();
+      $("seq-wrap").hidden = view !== "count"; $("div-wrap").hidden = view === "count"; drawCalendar(); drawMonths();
     }));
+
+    const mhost = $("months");
+    const mpick = (g) => { mcursor = { year: g.year, month: g.month }; drawMonths(); monthReadout(); };
+    mhost.addEventListener("click", (ev) => {
+      const svg = mhost.querySelector("svg"); if (!svg) return;
+      const box = svg.getBoundingClientRect(), k = box.width / svg.viewBox.baseVal.width;
+      const month = Math.floor(((ev.clientX - box.left) / k - 40) / 26) + 1, year = months.minY + Math.floor(((ev.clientY - box.top) / k - 20) / 12);
+      const g = months.byKey.get(year * 100 + month); if (g) mpick(g);
+    });
+    mhost.addEventListener("keydown", (ev) => {
+      const d = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0] }[ev.key];
+      if (!d) return;
+      ev.preventDefault();
+      const last = months.list[months.list.length - 1], cur = mcursor || { year: last.year, month: last.month + 1 };
+      const g = months.byKey.get((cur.year + d[0]) * 100 + cur.month + d[1]); if (g) mpick(g);
+    });
+    $("png-calendar").onclick = () => series && svgPng($("calendar").querySelector("svg"), "weekly calendar", `weekly_calendar_${areaTag()}.png`);
+    $("png-months").onclick = () => series && svgPng($("months").querySelector("svg"), "monthly calendar", `monthly_calendar_${areaTag()}.png`);
+    $("png-map").onclick = () => {
+      if (!series) return;
+      drawMap();                                // make sure the canvas matches the current layout
+      const m = $("map");
+      if (m.width && m.height) withCaption(m, m.width, m.height, "map of hotspots in the chosen dates", `map_${areaTag()}.png`);
+    };
+    $("csv-monthly").onclick = () => series && monthlyCsv();
 
     const host = $("calendar");
     const pick = (c) => { cursor = { year: c.year, week: c.week }; drawCalendar(); readout(); };

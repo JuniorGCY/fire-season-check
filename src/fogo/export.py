@@ -45,6 +45,8 @@ def build_payload(
     synthetic: bool = False,
     now: datetime | None = None,
     checks: list[dict] | None = None,
+    observation: dict | None = None,
+    sensors_last_day: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     curve = weekly_curve(series, headline.year)
     unit = "hotspots" if calibration.quantity == "count" else "fire radiative power (MW)"
@@ -65,6 +67,7 @@ def build_payload(
             "year": headline.year,
             "last_week": headline.last_week,
             "pct_vs_normal": _clean(round(headline.pct_vs_normal, 1)),
+            "pct_vs_median": _clean(round(headline.pct_vs_median, 1)),
             "status": headline.status,
             "rank": headline.rank,
             "compared_years": headline.compared_years,
@@ -85,7 +88,9 @@ def build_payload(
             "weekly_error_p90": _clean(round(error["p90_error"], 3)),
             "weeks_scored": int(error["weeks"]),
             "validation": validation,
+            **(sensors_last_day or {}),
         },
+        "observation": observation,
         "robustness": checks or [],
         "sources": SOURCES,
         "trust_note": TRUST_NOTE,

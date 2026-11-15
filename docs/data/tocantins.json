@@ -2,13 +2,14 @@
  "synthetic": false,
  "region": "Tocantins",
  "unit": "hotspots",
- "generated_on": "2026-11-14",
+ "generated_on": "2026-11-15",
  "data_through": "2026-11-01",
  "headline": {
   "text": "Through November 1, 2026, Tocantins had 41% fewer hotspots than the average of the previous 10 years (below the range of the last years). Latest weeks are provisional.",
   "year": 2026,
   "last_week": 44,
   "pct_vs_normal": -41.0,
+  "pct_vs_median": -41.4,
   "status": "below",
   "rank": 11,
   "compared_years": 11,
@@ -413,7 +414,19 @@
   "weekly_error_median": 0.092,
   "weekly_error_p90": 0.389,
   "weeks_scored": 388,
-  "validation": "fit on 2012-2018, tested on 2019-2026, and the reverse; fire-season weeks (June to November) only"
+  "validation": "fit on 2012-2018, tested on 2019-2026, and the reverse; fire-season weeks (June to November) only",
+  "modis_last_day": "2026-11-14",
+  "viirs_last_day": "2026-11-02"
+ },
+ "observation": {
+  "from": "2012-01-20",
+  "to": "2026-11-02",
+  "modis_detections": 701380,
+  "viirs_detections": 2858721,
+  "modis_day_share": 0.7787,
+  "viirs_day_share": 0.7074,
+  "ratio_day": 0.2701,
+  "ratio_night": 0.1855
  },
  "robustness": [
   {

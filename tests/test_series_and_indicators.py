@@ -29,6 +29,16 @@ def test_above_normal_percent_and_status():
     assert result.status == "above" and result.rank == 1 and result.compared_years == 11
 
 
+def test_median_of_previous_years_is_reported_next_to_the_mean():
+    # one extreme year pulls the mean up but not the median
+    prior = {2015 + i: 100.0 for i in range(9)} | {2024: 1000.0}
+    result = headline(weekly_for_years({**prior, 2025: 100.0}, 30), 2025, 30)
+    assert result.normal_ytd == pytest.approx(190.0 * 30)
+    assert result.median_ytd == pytest.approx(100.0 * 30)
+    assert result.pct_vs_median == pytest.approx(0.0)
+    assert result.pct_vs_normal == pytest.approx((100 / 190 - 1) * 100)
+
+
 def test_below_and_within_status():
     low = headline(weekly_for_years({**PRIOR, 2025: 50.0}, 30), 2025, 30)
     mid = headline(weekly_for_years({**PRIOR, 2025: 145.0}, 30), 2025, 30)

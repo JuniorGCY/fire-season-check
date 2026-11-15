@@ -12,7 +12,8 @@ weekly series with a measured error, and compares the current year with the prev
 ## What it says today
 
 Through November 1, 2026, Tocantins had **41% fewer hotspots** than the average of the previous
-10 years (2016 to 2025), the lowest of the 11 years for the same weeks. Four other ways of
+10 years (2016 to 2025), the lowest of the 11 years for the same weeks. Against the **median** of those
+years it is -41% too (-41.4%), so one extreme year is not driving the answer. Four other ways of
 calculating it (MODIS alone, VIIRS alone, fire power instead of counts, one ratio for the whole year)
 give between **-38% and -43%**. Depending on the method, 2026 is the lowest or the second lowest year.
 The last weeks are provisional (near-real-time data is replaced by final data after about 5 months).
@@ -27,7 +28,20 @@ The last weeks are provisional (near-real-time data is replaced by final data af
 3. **Measure the error.** Fit the ratio on some years, score it on the years it never saw, and repeat
    the other way round. Only fire-season weeks (June to November) with at least 20 MODIS hotspots count.
 4. **Compare with normal.** Normal = mean of the previous 10 complete years for the same weeks, the same
-   yardstick the state fire plan of Tocantins uses. The comparison is cumulative (year to date).
+   yardstick the state fire plan of Tocantins uses. The comparison is cumulative (year to date). The median of
+   the same years is reported next to it, as the challenge asks for comparisons with the historical median.
+5. **Keep going when MODIS stops.** After 2012 the series is VIIRS on the MODIS ruler, so it ends where VIIRS ends
+   and does not need the ageing Terra and Aqua satellites to keep flying. (Today MODIS data reaches 2026-11-14 and
+   VIIRS 2026-11-02, so the series ends on the last complete week before 2026-11-02.)
+
+### When each sensor looks (day and night passes)
+
+MODIS (Terra about 10:30 and 22:30, Aqua about 13:30 and 01:30 local time) and VIIRS (about 13:30 and 01:30)
+observe at different hours, and fire follows a daily cycle. Using the `daynight` column of FIRMS, from 2012-01-20 to
+2026-11-02 in the Tocantins box: **78%** of MODIS hotspots and **71%** of VIIRS hotspots were seen on daytime passes,
+and MODIS saw **0.27** hotspots per VIIRS hotspot by day but **0.19** by night. Our ruler uses one ratio per month
+for day and night together, which is part of the error in the table below. A separate day/night ruler is future
+work; the numbers are shown on the page so users can see this source of difference.
 
 ### Validation (real data, weekly relative error, out of sample)
 
@@ -50,11 +64,19 @@ does not depend on pixel size the way counts do. The headline uses the monthly c
 ## Explore an area and a period
 
 Below the headline, the page lets a user pick a rectangle on the map (or type latitude and longitude) and a date
-range. It then shows the weekly series, a year-by-week calendar, the difference from the 10-year normal, and three
-CSV downloads, all computed in the browser from static files:
+range. Everything is computed in the browser from static files:
+
+- a **year-by-week calendar** (hotspots per week, or compared with the 10-year average), with the median for each week;
+- a **year-by-month calendar** and a sentence on the latest month against the **median of the same month** in the
+  previous 10 years, plus the busiest month on average and the busiest full year in the area. Months are compared per
+  week, so months with 4 and 5 weeks compare fairly; a week belongs to the month of its Thursday;
+- the total for the chosen area and dates against the average and the median of the previous 10 years;
+- downloads:
 
 | Download | What it holds |
 |---|---|
+| Weekly calendar, monthly calendar, map (PNG) | the pictures, with a caption giving dates, area and data source |
+| Monthly series (CSV) | per month: weeks, harmonized total, per week, median per week of the previous 10 years, difference |
 | Weekly series | counts per week for the area: MODIS, VIIRS and the harmonized value |
 | By 28 km cell | counts per week and per 0.25 degree cell |
 | **Individual hotspots** | every detection in the area and dates: date, time (UTC), latitude, longitude, sensor, fire radiative power (MW), `harmonized_weight`, `provisional` |
@@ -86,7 +108,7 @@ municipality, which is close to the town but not exact.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest -q                      # 72 tests
+python -m pytest -q                      # 80 tests
 PYTHONPATH=src python -m fogo.cli build \
   --modis path/to/fire_archive_M-C61_*.csv path/to/fire_nrt_M-C61_*.csv \
   --viirs path/to/fire_archive_SV-C2_*.csv path/to/fire_nrt_SV-C2_*.csv \
@@ -135,9 +157,10 @@ src/fogo/export.py      the small JSON the page reads
 src/fogo/grid.py        0.25 degree cells x weeks per sensor (sparse JSON for the area explorer)
 src/fogo/points.py      every detection, one binary file per year (docs/data/points/, about 44 MB)
 src/fogo/geo.py         state border and place names for the map (docs/data/geo.json, from IBGE)
+src/fogo/schedule.py    day/night share and day/night MODIS-to-VIIRS ratio (observation schedules)
 src/fogo/cli.py         end to end build, plus robustness checks
 docs/                   static page (no backend, no keys): index.html + data/tocantins.json
-tests/                  72 tests (reading, weeks, calibration, indicators, export, grid, points, geo, region, end to end)
+tests/                  80 tests (reading, weeks, calibration, indicators, export, grid, points, geo, region, schedule, end to end)
 ```
 
 ## NASA data and references
