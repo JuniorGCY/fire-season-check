@@ -76,8 +76,8 @@ municipality, which is close to the town but not exact.
 - Calibration was fitted for the whole state, so small areas (under 12 cells) have a larger error; the page warns.
 - Individual coordinates are rounded to about 100 m. The weekly and cell CSVs are counts, the individual CSV is
   detections.
-- The covered region is only the Tocantins box. The pipeline reads any FIRMS box in principle, but the box is fixed in
-  `load.py` and no other region has been validated.
+- The page covers only the Tocantins box. The pipeline accepts any FIRMS box (`--bbox`, see "Another region"), but no
+  region other than Tocantins has been validated, so we do not claim "any region of the planet".
 - Near-real-time data has no `type` column, so static sources are not filtered in the last months.
 - Only weekly values were validated (table above), so single days are not shown.
 - Not an official warning system.
@@ -86,13 +86,27 @@ municipality, which is close to the town but not exact.
 
 ```bash
 pip install -r requirements.txt
-python -m pytest -q                      # 61 tests
+python -m pytest -q                      # 72 tests
 PYTHONPATH=src python -m fogo.cli build \
   --modis path/to/fire_archive_M-C61_*.csv path/to/fire_nrt_M-C61_*.csv \
   --viirs path/to/fire_archive_SV-C2_*.csv path/to/fire_nrt_SV-C2_*.csv \
   --out docs/data/tocantins.json --grid-out docs/data/grid.json --points-out docs/data/points
 cd docs && python -m http.server 8765    # open http://localhost:8765
 ```
+
+### Another region
+
+The pipeline is not tied to Tocantins. Download MODIS and VIIRS CSVs from FIRMS for any box, then give the same box:
+
+```bash
+PYTHONPATH=src python -m fogo.cli build --region "Your region" --bbox SOUTH NORTH WEST EAST \
+  --modis ... --viirs ... --out out/region.json --grid-out out/grid.json --points-out out/points
+```
+
+The box must be the one used in the FIRMS download and must not cross the antimeridian. The command stops with a clear
+message if a box is impossible or holds no hotspots. The calibration (monthly MODIS/VIIRS ratio) is refitted and
+validated on that region's own data, so the error reported is for that region. This repository ships and has validated
+only Tocantins; the page reads one region from `docs/data/`, and the state border and town names (`geo.json`) are specific to Tocantins.
 
 State border and place names (IBGE open data, saved once as JSON; the page works without this file):
 
@@ -123,7 +137,7 @@ src/fogo/points.py      every detection, one binary file per year (docs/data/poi
 src/fogo/geo.py         state border and place names for the map (docs/data/geo.json, from IBGE)
 src/fogo/cli.py         end to end build, plus robustness checks
 docs/                   static page (no backend, no keys): index.html + data/tocantins.json
-tests/                  61 tests (reading, weeks, calibration, indicators, export, grid, points, geo, end to end)
+tests/                  72 tests (reading, weeks, calibration, indicators, export, grid, points, geo, region, end to end)
 ```
 
 ## NASA data and references

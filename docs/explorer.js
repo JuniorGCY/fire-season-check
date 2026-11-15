@@ -275,7 +275,7 @@
     if ([r.s, r.n, r.w, r.e].some(Number.isNaN)) { err.textContent = "Type all four numbers in decimal degrees, for example -10.5."; return null; }
     if (r.s >= r.n || r.w >= r.e) { err.textContent = "South must be below north and west must be left of east (west is more negative)."; return null; }
     if (r.n < lat0 || r.s > lat1 || r.e < lon0 || r.w > lon1) {
-      err.textContent = `This tool covers latitude ${fix(lat0)} to ${fix(lat1)} and longitude ${fix(lon0)} to ${fix(lon1)} (Tocantins and surroundings).`; return null;
+      err.textContent = `This tool covers latitude ${fix(lat0)} to ${fix(lat1)} and longitude ${fix(lon0)} to ${fix(lon1)} (the box this page was built for).`; return null;
     }
     err.textContent = "";
     return { s: Math.max(r.s, lat0), n: Math.min(r.n, lat1), w: Math.max(r.w, lon0), e: Math.min(r.e, lon1) };

@@ -31,6 +31,17 @@ class BBox:
     min_lon: float
     max_lon: float
 
+    def __post_init__(self) -> None:
+        # Boxes crossing the antimeridian (min_lon > max_lon) are not supported.
+        if not (-90 <= self.min_lat <= 90 and -90 <= self.max_lat <= 90):
+            raise ValueError("latitude must be between -90 and 90 degrees")
+        if not (-180 <= self.min_lon <= 180 and -180 <= self.max_lon <= 180):
+            raise ValueError("longitude must be between -180 and 180 degrees")
+        if self.min_lat >= self.max_lat:
+            raise ValueError(f"south ({self.min_lat}) must be below north ({self.max_lat})")
+        if self.min_lon >= self.max_lon:
+            raise ValueError(f"west ({self.min_lon}) must be left of east ({self.max_lon})")
+
     def mask(self, lat: pd.Series, lon: pd.Series) -> pd.Series:
         return (
             lat.between(self.min_lat, self.max_lat) & lon.between(self.min_lon, self.max_lon)

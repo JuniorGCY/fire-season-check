@@ -16,7 +16,7 @@ from .export import build_payload, write_payload
 from .grid import build_grid
 from .indicators import InsufficientHistory, headline
 from .geo import DEFAULT_PLACES, build_geo
-from .load import TOCANTINS, read_firms
+from .load import TOCANTINS, BBox, read_firms
 from .points import build_points
 from .series import harmonize
 from .weekly import weekly_series
@@ -62,9 +62,15 @@ def run(
     synthetic: bool = False,
     grid_out: Path | None = None,
     points_out: Path | None = None,
+    box: BBox = TOCANTINS,
 ) -> dict:
-    modis_detections = read_firms(modis_paths, TOCANTINS)
-    viirs_detections = read_firms(viirs_paths, TOCANTINS)
+    modis_detections = read_firms(modis_paths, box)
+    viirs_detections = read_firms(viirs_paths, box)
+    for sensor, detections in (("MODIS", modis_detections), ("VIIRS", viirs_detections)):
+        if detections.empty:
+            raise SystemExit(f"no hotspots from {sensor} inside the box "
+                             f"lat {box.min_lat}..{box.max_lat}, lon {box.min_lon}..{box.max_lon}: "
+                             "check the box and the CSV files")
     modis, viirs = weekly_series(modis_detections), weekly_series(viirs_detections)
     # The harmonized series uses VIIRS after 2012, so it is only valid up to the date BOTH sensors
     # reach; otherwise the last weeks would count zero VIIRS hotspots.
@@ -102,12 +108,12 @@ def run(
                             checks=checks)
     write_payload(payload, out)
     if grid_out is not None:
-        grid = build_grid(modis_detections, viirs_detections, TOCANTINS, harmonized.index.max(), calibration)
+        grid = build_grid(modis_detections, viirs_detections, box, harmonized.index.max(), calibration)
         grid_out.parent.mkdir(parents=True, exist_ok=True)
         grid_out.write_text(json.dumps(grid, separators=(",", ":")))
     if points_out is not None:
         # Same cutoff as the grid: the end of the last complete common week.
-        build_points(modis_detections, viirs_detections, TOCANTINS, points_out,
+        build_points(modis_detections, viirs_detections, box, points_out,
                      through=harmonized.index.max() + pd.Timedelta(days=6))
     return payload
 
@@ -119,6 +125,10 @@ def main() -> None:
     build.add_argument("--modis", type=Path, nargs="+", required=True)
     build.add_argument("--viirs", type=Path, nargs="+", required=True)
     build.add_argument("--out", type=Path, required=True)
+    build.add_argument("--region", default=None, help="region name shown on the page (required with --bbox)")
+    build.add_argument("--bbox", type=float, nargs=4, default=None,
+                       metavar=("SOUTH", "NORTH", "WEST", "EAST"),
+                       help="decimal degrees; default is the Tocantins box. Use the same box as the FIRMS download.")
     build.add_argument("--quantity", choices=["count", "frp"], default="count")
     build.add_argument("--grid-out", type=Path, default=None, help="also write the 0.25 degree grid JSON")
     build.add_argument("--points-out", type=Path, default=None,
@@ -137,8 +147,14 @@ def main() -> None:
         args.out.write_text(json.dumps(geo, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
         print(f"outline: {sum(len(r) for r in geo['outline'])} points, places: {len(geo['places'])}")
         return
-    payload = run(args.modis, args.viirs, args.out, quantity=args.quantity, synthetic=args.synthetic,
-                   grid_out=args.grid_out, points_out=args.points_out)
+    try:
+        box = BBox(*args.bbox) if args.bbox else TOCANTINS
+    except ValueError as error:
+        raise SystemExit(f"--bbox: {error}") from error
+    if args.bbox and not args.region:
+        parser.error("--bbox needs --region, so the page names the right place")
+    payload = run(args.modis, args.viirs, args.out, region=args.region or "Tocantins", quantity=args.quantity,
+                  synthetic=args.synthetic, grid_out=args.grid_out, points_out=args.points_out, box=box)
     print(payload["headline"]["text"])
     print("validation:", payload["method"]["validation"],
           "| median weekly error:", payload["method"]["weekly_error_median"],
