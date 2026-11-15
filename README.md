@@ -7,7 +7,57 @@ below normal?** It combines two NASA satellite records (MODIS since 2000, VIIRS 
 weekly series with a measured error, and compares the current year with the previous ten.
 
 - Live page: https://juniorgcy.github.io/fire-season-check/ (GitHub Pages, folder `docs/`).
-- Region: Tocantins, Brazil. Intended users: firefighters, brigades and municipal civil defence.
+- Demo, 7 slides: https://juniorgcy.github.io/fire-season-check/slides.html (arrow keys; print to PDF for a file).
+- Form texts: `SUBMISSION.md`.
+- Regions: Tocantins, Brazil (main; intended users: firefighters, brigades and municipal civil defence) and the
+  Argentine Chaco (second region, to test that the method travels). Switch with the selector or `?region=chaco`.
+
+## The finding: there is no single MODIS-to-VIIRS factor
+
+The number of MODIS hotspots per VIIRS hotspot, measured on the years both satellites fly (out-of-sample error
+below), changes by month, by time of day and by region:
+
+| | Tocantins (Cerrado, Brazil) | Argentine Chaco |
+|---|---|---|
+| Whole-year ratio | 0.246 | 0.308 |
+| Monthly pattern | falls through the season: 0.33 in June, 0.21 in October | peaks in winter: 0.34 in July |
+| Daytime passes | 0.27 | 0.35 |
+| Night-time passes | 0.19 | 0.19 |
+| Median weekly error, out of sample | 9.2% (p90 38.9%) | 9.3% (p90 33.2%) |
+| 2026 so far vs previous 10 years (mean / median) | -41% / -41%, lowest of 11 years | -61% / -51%, lowest of 11 years |
+
+A factor copied from one region would be about 25% off in the other. The night ratio is the same in both regions,
+so the difference comes from daytime passes. That is why the tool fits the ratio per month on each region's own
+data and reports its own error, instead of using one global number.
+
+### Stress test: Paraná Delta (built, not published)
+
+We also ran the pipeline, unchanged, on a harder region: the Paraná Delta and the farmland around it (box latitude
+-34.5 to -32.0, longitude -61.0 to -58.0, including a strip of Uruguay). Fires there are small and short (wetland
+islands, crop residue), so far fewer weeks reach 20 MODIS hotspots.
+
+| | Tocantins | Argentine Chaco | Paraná Delta |
+|---|---|---|---|
+| Median weekly error, out of sample | 9.2% | 9.3% | **23.3%** |
+| 90th percentile | 38.9% | 33.2% | **53.3%** |
+| Weeks used to score the ruler | 388 | 376 | 156 |
+| Best fit | monthly ratio | monthly ratio | one ratio for the year |
+| Day / night ratio | 0.27 / 0.19 | 0.35 / 0.19 | 0.25 / 0.14 |
+| 2026 so far vs mean of previous 10 years | -41% | -61% | -60% |
+| 2026 so far vs **median** of previous 10 years | -41% | -51% | **-8%** |
+| Rank among 11 years (1 = most hotspots) | 11 | 11 | 6, within the range |
+
+Two lessons, and the reason it is not on the page:
+
+1. **The tool flags its own weakness.** The out-of-sample error came out 2.5 times larger without anyone tuning
+   anything. A user would see that this ruler is much less precise here.
+2. **The mean can mislead; the median does not.** The huge fires of 2020 and 2022 pull the 10-year mean up, so 2026
+   looks 60% "below normal". Against the median it is only 8% below, an ordinary year (rank 6 of 11). This is why the
+   page now shows the median next to the mean.
+
+We did not publish the Delta because the page's big headline number is computed against the mean, which here would
+tell a firefighter "-60%" for a normal year, and because the error is above what we accept for a weekly ruler.
+Showing it properly would need a median-first headline and a low-confidence warning; that is future work.
 
 ## What it says today
 
@@ -23,8 +73,10 @@ The last weeks are provisional (near-real-time data is replaced by final data af
 1. **Read** NASA FIRMS CSVs for a bounding box around Tocantins, keep vegetation fires (`type` 0),
    merge archive and near-real-time files without double counting, and aggregate by ISO week.
 2. **Common ruler.** MODIS sees fewer, larger pixels than VIIRS (about 1 km² vs 0.14 km²), so raw counts
-   are not comparable. In the weeks where both exist (2012 to 2026) we scale VIIRS to the MODIS ruler.
-   Before January 2012 only MODIS is used.
+   are not comparable. In the weeks where both exist (2012 to 2026) we scale VIIRS to the MODIS ruler:
+   **MODIS-equivalent = VIIRS × factor**, with one factor per calendar month (about 0.25 over the year in
+   Tocantins). The factor is below 1 because VIIRS detects more hotspots than MODIS. Before January 2012 only
+   MODIS is used.
 3. **Measure the error.** Fit the ratio on some years, score it on the years it never saw, and repeat
    the other way round. Only fire-season weeks (June to November) with at least 20 MODIS hotspots count.
 4. **Compare with normal.** Normal = mean of the previous 10 complete years for the same weeks, the same
@@ -98,8 +150,10 @@ municipality, which is close to the town but not exact.
 - Calibration was fitted for the whole state, so small areas (under 12 cells) have a larger error; the page warns.
 - Individual coordinates are rounded to about 100 m. The weekly and cell CSVs are counts, the individual CSV is
   detections.
-- The page covers only the Tocantins box. The pipeline accepts any FIRMS box (`--bbox`, see "Another region"), but no
-  region other than Tocantins has been validated, so we do not claim "any region of the planet".
+- The page covers two boxes, Tocantins and the Argentine Chaco, both validated out of sample. The pipeline accepts any
+  FIRMS box (`--bbox`, see "Another region"), but two regions are evidence, not proof, so we do not claim "any region
+  of the planet". Regions with few hotspots, many small cool fires or high latitudes may not validate; the pipeline
+  then reports a larger error or stops. The Chaco box has no borders drawn and includes a strip of Paraguay.
 - Near-real-time data has no `type` column, so static sources are not filtered in the last months.
 - Only weekly values were validated (table above), so single days are not shown.
 - Not an official warning system.
@@ -127,8 +181,17 @@ PYTHONPATH=src python -m fogo.cli build --region "Your region" --bbox SOUTH NORT
 
 The box must be the one used in the FIRMS download and must not cross the antimeridian. The command stops with a clear
 message if a box is impossible or holds no hotspots. The calibration (monthly MODIS/VIIRS ratio) is refitted and
-validated on that region's own data, so the error reported is for that region. This repository ships and has validated
-only Tocantins; the page reads one region from `docs/data/`, and the state border and town names (`geo.json`) are specific to Tocantins.
+validated on that region's own data, so the error reported is for that region. The Argentine Chaco was built this way:
+
+```bash
+PYTHONPATH=src python -m fogo.cli build --region "Argentine Chaco" --bbox -28.5 -23.5 -64.5 -58.5 \
+  --modis fire_archive_M-C61_851071.csv fire_nrt_M-C61_851071.csv \
+  --viirs fire_archive_SV-C2_851076.csv fire_nrt_SV-C2_851076.csv \
+  --out docs/data/chaco/chaco.json --grid-out docs/data/chaco/grid.json --points-out docs/data/chaco/points
+```
+
+To show a new region on the page, add an entry to `docs/data/regions.json` (paths to its files, optional border file,
+map note and quick areas). The state border and town names (`geo.json`) exist only for Tocantins.
 
 State border and place names (IBGE open data, saved once as JSON; the page works without this file):
 
@@ -175,19 +238,35 @@ tests/                  80 tests (reading, weeks, calibration, indicators, expor
 
 ## Use of Super Intelligence (SI)
 
-Claude (Anthropic) was used as a coding and analysis assistant during the hackathon: it wrote the code,
-the tests and the page, and ran the data checks that are reported above. The author chose the challenge,
-the region and the intended users, asked for a story-first product instead of a data dashboard, ran the
-FIRMS requests, reviewed the results and decides what is published. The specific method (monthly
-calibration ratio, comparison with a 10-year normal, robustness checks) was developed in conversation
-with Claude. Code, data processing and the text of this repository and page are SI-assisted; there is no
-generated imagery, audio or video in the page.
+**Short version** (the same sentence is in the page footer, in a `<meta>` tag of the page, in `docs/data/ABOUT.txt`
+and in the header of the Python package):
+
+> Built with the help of Claude (Anthropic), an AI assistant. The author chose the challenge, chose the approach
+> among the options the assistant listed, chose the users, the regions and how results are shown, and downloaded
+> the NASA FIRMS data. The assistant wrote the code, tests and texts and ran the data checks; the author reviewed
+> the results and decides what is published.
+
+**What happened, in order:**
+
+1. The author asked Claude for a summary of the challenges and chose "Harmonization of MODIS and VIIRS Hot Spots".
+2. The author asked what keeps the MODIS and VIIRS records from lining up. Claude listed the options and what each
+   one affects; the author chose the approach used here (a measured MODIS/VIIRS ratio, validated on years it has
+   not seen) and asked how it would be used in practice.
+3. The author decided the users (firefighters, brigades, civil defence), to start with Tocantins and to plan other
+   regions (the Argentine Chaco was added, the Paraná Delta was tested and left out), downloaded the FIRMS data and
+   chose how the results are shown.
+4. Claude wrote the code, the tests, the page and these texts, and ran the data checks reported above (including
+   the findings that the ratio changes by month, by day/night and by region). The author reviewed the results.
+
+Code, data processing and all text in this repository and page are SI-assisted. There is no generated imagery,
+audio or video.
 
 ## Disclosure about earlier work
 
 Before the event the author studied the FIRMS data format and downloaded two small sample files
-(August to September 2023) and built an early exploratory prototype. None of that code is used here: every
-file in this repository was written on November 14, 2026, during the hackathon, from scratch.
+(August to September 2023) and built an early exploratory prototype. None of that code or data is used here:
+every file in this repository was written during the hackathon, on November 14 and 15, 2026, from scratch
+(the first commit is from November 14, 14:53, after the 09:00 start; see `git log`).
 
 ## License
 

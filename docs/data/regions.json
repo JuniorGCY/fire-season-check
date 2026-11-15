@@ -1,0 +1,30 @@
+{
+ "default": "tocantins",
+ "regions": [
+  {
+   "id": "tocantins",
+   "name": "Tocantins, Brazil",
+   "short": "Tocantins",
+   "page": "data/tocantins.json",
+   "grid": "data/grid.json",
+   "points": "data/points/",
+   "geo": "data/geo.json",
+   "map_note": "The black line is the state border and the dots are municipalities, placed at the centre of each municipality (approximate). The box also covers slivers of neighbouring states. Border and names: IBGE.",
+   "presets": [
+    {"label": "Araguaia side (approx.)", "box": [-12, -8, -50.8, -48.8]},
+    {"label": "Jalapão side (approx.)", "box": [-11.5, -9.5, -47.5, -45.6]}
+   ]
+  },
+  {
+   "id": "chaco",
+   "name": "Argentine Chaco",
+   "short": "Chaco",
+   "page": "data/chaco/chaco.json",
+   "grid": "data/chaco/grid.json",
+   "points": "data/chaco/points/",
+   "geo": null,
+   "map_note": "No borders are drawn for this region. The box (latitude -28.5 to -23.5, longitude -64.5 to -58.5) covers mainly the Argentine provinces of Chaco, Formosa and Santiago del Estero, and a strip of Paraguay. The MODIS/VIIRS ratio was fitted and validated on this region's own data.",
+   "presets": []
+  }
+ ]
+}

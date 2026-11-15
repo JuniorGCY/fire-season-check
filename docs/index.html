@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fire Season Check · Tocantins</title>
 <meta name="description" content="Is this fire season above or below normal? Two NASA satellites, one common ruler, 25 years of hotspots.">
+<meta name="ai-disclosure" content="Built with the help of Claude (Anthropic), an AI assistant. The author chose the challenge, chose the approach among the options the assistant listed, chose the users, the regions and how results are shown, and downloaded the NASA FIRMS data. The assistant wrote the code, tests and texts and ran the data checks; the author reviewed the results and decides what is published.">
+<meta name="author" content="Sam (PALMVY), with SI assistance (Claude, Anthropic)">
 <style>
   :root {
     --bg: #fbfaf7; --surface: #ffffff; --ink: #1d2327; --muted: #5a656c; --line: #d9d6cf;
@@ -73,12 +75,60 @@
   fieldset label { display: inline-block; font-weight: 400; margin: 6px 16px 0 0; }
   .note { background: var(--warn-bg); color: var(--warn-ink); border-radius: 8px; padding: 8px 12px; margin: 10px 0; font-size: .92rem; }
   #state { text-align: center; color: var(--muted); padding: 40px 0; }
+
+  /* ---------- visual polish (presentation only) ---------- */
+  :root { --accent: #c2410c; --good: #0f766e; --shadow: 0 1px 2px rgba(20,24,27,.06), 0 6px 20px rgba(20,24,27,.06); }
+  @media (prefers-color-scheme: dark) { :root { --accent: #fb923c; --good: #5eead4; --shadow: none; } }
+  main { max-width: 880px; padding-top: 28px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand svg { width: 40px; height: 40px; flex: none; }
+  h1 { font-size: 1.6rem; font-weight: 750; letter-spacing: -.01em; }
+  .tagline { margin: 2px 0 0; color: var(--muted); font-size: .95rem; }
+  .accent-rule { height: 4px; border-radius: 4px; margin: 16px 0 18px;
+    background: linear-gradient(90deg, #fdd49e, #fc8d59 35%, #d7301f 70%, #7f0000); }
+  .region { margin: 0 0 14px; font-weight: 600; color: var(--ink); }
+  .card { border-radius: 14px; padding: 22px; box-shadow: var(--shadow); margin-bottom: 18px; }
+  .eyebrow { font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted); margin: 0 0 10px; }
+  #hero { border-left: 6px solid var(--normal); }
+  #hero[data-status="below"] { border-left-color: var(--good); }
+  #hero[data-status="above"] { border-left-color: var(--accent); }
+  #hero[data-status="below"] .big { color: var(--good); }
+  #hero[data-status="above"] .big { color: var(--accent); }
+  .big { letter-spacing: -.02em; }
+  .chip { background: var(--bg); border-width: 1.5px; padding: 3px 12px; }
+  .lead { font-size: 1.15rem; line-height: 1.5; max-width: 62ch; }
+  button { transition: transform .08s ease, background-color .15s ease, border-color .15s ease; }
+  button:hover { transform: translateY(-1px); }
+  button.ghost:hover { border-color: var(--ink); }
+  button:disabled { opacity: .55; cursor: progress; transform: none; }
+  @media (prefers-reduced-motion: reduce) { button { transition: none; } button:hover { transform: none; } }
+  .downloads { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin: 14px 0 0; }
+  .downloads button { width: 100%; text-align: left; }
+  h3 { font-size: 1rem; }
+  footer { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 8px; }
+  #region-pick { cursor: pointer; }
 </style>
 </head>
 <body>
 <main>
-  <h1>Fire Season Check</h1>
+  <header class="brand">
+    <svg viewBox="0 0 40 40" aria-hidden="true">
+      <rect width="40" height="40" rx="10" fill="#7f0000"/>
+      <path d="M20 8c1.5 4.5 7 7.5 7 14a7 7 0 0 1-14 0c0-3.2 1.6-5.2 3.4-6.9.3 2 1.3 3.4 2.6 3.9-.6-3.9.2-7.6 1-11z" fill="#fc8d59"/>
+      <path d="M20 21c1.2 2 3 3 3 5.2a3 3 0 0 1-6 0c0-1.6.8-2.5 1.7-3.3.2.8.6 1.3 1.1 1.5-.2-1.3 0-2.4.2-3.4z" fill="#fdd49e"/>
+    </svg>
+    <div>
+      <h1>Fire Season Check</h1>
+      <p class="tagline">Two NASA satellites, one common ruler: is this fire season above or below normal?</p>
+    </div>
+  </header>
+  <div class="accent-rule" aria-hidden="true"></div>
   <p class="region" id="region">Tocantins, Brazil</p>
+  <div id="region-wrap" hidden style="margin:-10px 0 18px">
+    <label for="region-pick" style="display:inline;margin:0 8px 0 0;font-size:.9rem">Region</label>
+    <select id="region-pick" style="font:inherit;padding:8px 10px;min-height:44px;color:var(--ink);background:var(--surface);border:1.5px solid var(--line);border-radius:8px"></select>
+  </div>
 
   <div id="state" role="status" aria-live="polite">Loading satellite data…</div>
 
@@ -87,15 +137,15 @@
       Development preview with synthetic data. These numbers are not real.
     </div>
 
-    <section class="card" aria-labelledby="headline-title">
-      <h2 class="sr-only" id="headline-title">Headline</h2>
+    <section class="card" id="hero" aria-labelledby="headline-title">
+      <h2 class="eyebrow" id="headline-title">This season so far</h2>
       <p class="big"><span id="pct"></span><span class="chip" id="status"></span></p>
       <p class="lead" id="headline"></p>
       <p class="meta" id="through"></p>
     </section>
 
     <section class="card" aria-labelledby="chart-title">
-      <h2 class="sr-only" id="chart-title">This year compared with the last ten years</h2>
+      <h2 class="eyebrow" id="chart-title">Week by week, this year against the last ten</h2>
       <svg id="chart" viewBox="0 0 720 320" role="img" aria-describedby="chart-summary"></svg>
       <p class="sr-only" id="chart-summary"></p>
       <div class="legend" aria-hidden="true">
@@ -108,20 +158,15 @@
 
 
     <section class="card" aria-labelledby="ex-title">
-      <h2 id="ex-title" style="font-size:1.05rem;margin:0 0 6px">Explore any area and period</h2>
+      <h2 class="eyebrow" id="ex-title">Explore any area and period</h2>
       <p class="meta" style="margin:0 0 8px">Draw a rectangle on the map (drag with mouse or finger) or type its corners, then pick dates.
         Both satellites are combined on one ruler, from November 2000 to <span id="data-end">…</span>.</p>
       <div id="ex-state" role="status" aria-live="polite" style="text-align:center;color:var(--muted);padding:20px 0">Loading the area explorer…</div>
       <div id="ex-body" hidden>
-        <div class="chips" role="group" aria-label="Quick areas">
-          <button class="ghost" type="button" data-preset="-13.5,-5.0,-50.8,-45.55">Whole Tocantins box</button>
-          <button class="ghost" type="button" data-preset="-12,-8,-50.8,-48.8">Araguaia side (approx.)</button>
-          <button class="ghost" type="button" data-preset="-11.5,-9.5,-47.5,-45.6">Jalapão side (approx.)</button>
-        </div>
-        <canvas id="map" role="img" aria-label="Map of Tocantins with the state outline and main towns. Each square is a 28 km cell shaded by hotspots in the chosen period. Use the number boxes below to set the area with the keyboard."></canvas>
+        <div class="chips" id="presets" role="group" aria-label="Quick areas"></div>
+        <canvas id="map" role="img" aria-label="Map of the region. Each square is a 28 km cell shaded by hotspots in the chosen period. Use the number boxes below to set the area with the keyboard."></canvas>
         <p class="meta" style="margin:0 0 8px">Each square is about 28 km. Darker red means more hotspots in the dates you picked; grey means none.
-          The black line is the state border and the dots are municipalities, placed at the centre of each municipality (approximate).
-          The box also covers slivers of neighbouring states. Border and names: IBGE.</p>
+          <span id="map-note"></span></p>
         <div class="row" role="group" aria-label="Area corners in decimal degrees">
           <div><label for="in-n">North (lat)</label><input id="in-n" type="text" inputmode="decimal"></div>
           <div><label for="in-s">South (lat)</label><input id="in-s" type="text" inputmode="decimal"></div>
@@ -136,7 +181,7 @@
         </div>
         <p class="err" id="range-error" role="alert"></p>
         <p id="summary" style="margin:8px 0 0;font-weight:600" aria-live="polite"></p>
-        <div class="note" id="small-note" hidden>Small area. The ratio between the two satellites was measured for the whole state,
+        <div class="note" id="small-note" hidden>Small area. The ratio between the two satellites was measured for the whole region,
           so in a few cells, where weekly counts are low, the error is larger than the number shown above. Prefer totals over several weeks to single weeks.</div>
 
         <fieldset><legend>Calendar shows</legend>
@@ -166,18 +211,18 @@
           Dashed outline: partial month, or provisional (near-real-time data, may change).</p>
         <output id="month-readout" for="months" aria-live="polite"></output>
 
-        <p style="margin:12px 0 0;display:flex;flex-wrap:wrap;gap:10px">
+        <div class="downloads">
           <button id="png-calendar" class="ghost" type="button">Download weekly calendar (PNG)</button>
           <button id="png-months" class="ghost" type="button">Download monthly calendar (PNG)</button>
           <button id="png-map" class="ghost" type="button">Download map (PNG)</button>
           <button id="csv-monthly" class="ghost" type="button">Download monthly series (CSV)</button>
-        </p>
+        </div>
 
-        <p style="margin:12px 0 0;display:flex;flex-wrap:wrap;gap:10px">
+        <div class="downloads">
           <button id="csv-weekly" type="button">Download weekly series (CSV)</button>
           <button id="csv-cells" class="ghost" type="button">Download hotspots by 28 km cell (CSV)</button>
           <button id="csv-points" class="ghost" type="button">Download individual hotspots (CSV)</button>
-        </p>
+        </div>
         <p id="pts-status" class="meta" role="status" aria-live="polite" style="margin:6px 0 0"></p>
         <p class="meta">The first two files list counts per week and per cell. The individual file lists every detection in your area and dates:
           date, time (UTC), latitude, longitude, sensor and fire radiative power (MW). Coordinates are rounded to about 100 m.
@@ -188,7 +233,7 @@
     </section>
 
     <section class="card" aria-labelledby="trust-title">
-      <h2 id="trust-title" style="font-size:1.05rem;margin:0 0 6px">How much to trust this</h2>
+      <h2 class="eyebrow" id="trust-title">How much to trust this</h2>
       <p id="robust" style="margin:0 0 8px"></p>
       <p id="error" style="margin:0 0 8px"></p>
       <p id="schedule" style="margin:0 0 8px"></p>
@@ -209,8 +254,11 @@
   <footer>
     <p>Data: NASA FIRMS (MODIS and VIIRS active fire). Built for the NASA Space Apps Challenge 2026,
        “Harmonization of MODIS and VIIRS Hot Spots”. Not an official warning system.</p>
-    <p>Super Intelligence disclosure: this page and its pipeline were written with the help of Claude (Anthropic);
-       the idea, the choices and the checks are the author's. Details in the repository README.</p>
+    <p>Super Intelligence (SI) disclosure: built with the help of Claude (Anthropic), an AI assistant. The author chose the challenge,
+       chose the approach among the options the assistant listed, chose the users, the regions and how results are shown,
+       and downloaded the NASA FIRMS data. The assistant wrote the code, tests and texts and ran the data checks; the author
+       reviewed the results and decides what is published.
+       Details in the <a href="https://github.com/JuniorGCY/fire-season-check#use-of-super-intelligence-si" rel="noopener">repository README</a>.</p>
   </footer>
 </main>
 
@@ -310,6 +358,7 @@
       h.rank === h.compared_years ? "Lowest of " + h.compared_years + " years" :
       { above: "Above recent years", within: "Within recent years", below: "Below recent years" }[h.status];
     $("status").textContent = ranked;
+    $("hero").dataset.status = h.status;
     $("headline").textContent = h.text;
     const pctText = (v) => `${v >= 0 ? "+" : "−"}${Math.abs(Math.round(v))}%`;
     const median = h.pct_vs_median == null ? "" :
@@ -364,19 +413,40 @@
     const lines = ["week,this_year,average_previous_years,lowest,highest"].concat(
       data.curve.map((r) => [r.week, r.current ?? "", r.normal, r.low, r.high].join(",")));
     const url = URL.createObjectURL(new Blob([lines.join("\n") + "\n"], { type: "text/csv" }));
-    const a = Object.assign(document.createElement("a"), { href: url, download: "tocantins_weekly_hotspots.csv" });
+    const a = Object.assign(document.createElement("a"), { href: url, download: `${REGION.id}_weekly_hotspots.csv` });
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }
+
+  // Regions this page can show (data/regions.json). Without that file the page still shows Tocantins.
+  const FALLBACK = { id: "tocantins", name: "Tocantins, Brazil", short: "Tocantins", page: "data/tocantins.json",
+    grid: "data/grid.json", points: "data/points/", geo: "data/geo.json", map_note: "", presets: [] };
+  let REGION = FALLBACK;
+  async function pickRegion() {
+    let list = [FALLBACK], fallbackId = FALLBACK.id;
+    try {
+      const res = await fetch("data/regions.json", { cache: "no-cache" });
+      if (res.ok) { const r = await res.json(); if (r.regions && r.regions.length) { list = r.regions; fallbackId = r.default || list[0].id; } }
+    } catch (e) { /* keep the fallback */ }
+    const wanted = new URLSearchParams(location.search).get("region");
+    REGION = list.find((r) => r.id === wanted) || list.find((r) => r.id === fallbackId) || list[0];
+    document.title = `Fire Season Check · ${REGION.short}`;
+    $("region").textContent = REGION.name;
+    const pick = $("region-pick");
+    pick.innerHTML = "";
+    for (const r of list) pick.appendChild(Object.assign(document.createElement("option"), { value: r.id, textContent: r.name, selected: r.id === REGION.id }));
+    $("region-wrap").hidden = list.length < 2;
+    pick.onchange = () => { const u = new URL(location.href); u.searchParams.set("region", pick.value); location.href = u.toString(); };
   }
 
   async function load() {
     show("loading", "Loading satellite data…");
     try {
-      const res = await fetch("data/tocantins.json", { cache: "no-cache" });
+      const res = await fetch(REGION.page, { cache: "no-cache" });
       if (!res.ok) throw new Error(res.status);
       data = await res.json();
       if (!data.curve || !data.curve.length) { show("empty", "No fire data for this region and period yet."); return; }
       render(); show("ready");
-      if (window.FireExplorer) window.FireExplorer.init(data.data_through);
+      if (window.FireExplorer) window.FireExplorer.init(data.data_through, REGION);
     } catch (e) {
       show("error", "Could not load the data. Check your connection and try again.", true);
     }
@@ -384,7 +454,7 @@
 
   $("csv").onclick = () => data && downloadCsv();
   window.addEventListener("resize", () => data && !$("content").hidden && drawChart(+$("week").value));
-  load();
+  pickRegion().then(load);
 })();
 </script>
 </body>

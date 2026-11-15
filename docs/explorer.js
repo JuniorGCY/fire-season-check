@@ -10,6 +10,7 @@
   const DIV = ["#2166ac", "#67a9cf", "#f7f7f7", "#ef8a62", "#b2182b"];
 
   let G, GEO = null, cells, NW, MOD, VII, dataThrough, firstMs;
+  let REGION = { id: "tocantins", grid: "data/grid.json", points: "data/points/", geo: "data/geo.json", map_note: "", presets: [] };
   let rect, sel = [], series, cal, months, view = "count", cursor = null, mcursor = null, range = { a: 1, b: 1 };
   let dragStart = null, cellTotals = null, mapPx = 12;
   const ML = 40, MT = 6, MB = 20;
@@ -427,7 +428,7 @@
     const a = Object.assign(document.createElement("a"), { href: url, download: name });
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   }
-  const areaTag = () => `${fix(rect.s)}_${fix(rect.n)}_${fix(rect.w)}_${fix(rect.e)}`;
+  const areaTag = () => `${REGION.id}_${fix(rect.s)}_${fix(rect.n)}_${fix(rect.w)}_${fix(rect.e)}`;
 
   function weeklyCsv() {
     const lines = ["week_start,week_end,iso_year,iso_week,modis_hotspots,viirs_hotspots,harmonized_hotspots_modis_scale,source,provisional"];
@@ -513,7 +514,7 @@
   }
   async function getYear(entry) {
     if (!yearCache.has(entry.year)) {
-      const res = await fetch(`data/points/${entry.file}`);
+      const res = await fetch(`${REGION.points}${entry.file}`);
       if (!res.ok) throw new Error(`${entry.file}: ${res.status}`);
       const buf = await res.arrayBuffer();
       if (buf.byteLength !== entry.bytes) throw new Error(`${entry.file}: unexpected size`);
@@ -533,7 +534,7 @@
     pointsBusy = true; $("csv-points").disabled = true;
     try {
       say("Preparing the individual hotspots…");
-      if (!pointsIndex) pointsIndex = await getJson("data/points/index.json");
+      if (!pointsIndex) pointsIndex = await getJson(`${REGION.points}index.json`);
       const P = pointsIndex, from = Date.parse(iso(weekStartMs(range.a)) + "T00:00:00Z"), to = weekStartMs(range.b) + 6 * DAY;
       const epoch = Date.parse(P.epoch + "T00:00:00Z");
       const years = P.years.filter((y) => Date.UTC(y.year + 1, 0, 1) > from && Date.UTC(y.year, 0, 1) <= to);
@@ -605,10 +606,11 @@
     for (const id of ["in-s", "in-n", "in-w", "in-e"]) $(id).addEventListener("change", applyArea);
     for (const id of ["in-from", "in-to"]) $(id).addEventListener("change", () => { if (readRange()) refresh(); });
 
-    document.querySelectorAll("[data-preset]").forEach((b) => b.addEventListener("click", () => {
+    $("presets").addEventListener("click", (ev) => {
+      const b = ev.target.closest("[data-preset]"); if (!b) return;
       const p = b.dataset.preset.split(",").map(Number);
       rect = { s: p[0], n: p[1], w: p[2], e: p[3] }; writeInputs(); refresh();
-    }));
+    });
     document.querySelectorAll("input[name=view]").forEach((r) => r.addEventListener("change", () => {
       view = document.querySelector("input[name=view]:checked").value;
       $("seq-wrap").hidden = view !== "count"; $("div-wrap").hidden = view === "count"; drawCalendar(); drawMonths();
@@ -669,21 +671,34 @@
     if (kind === "error") {
       const b = document.createElement("button");
       b.type = "button"; b.className = "ghost"; b.textContent = "Try again"; b.style.marginTop = "12px";
-      b.onclick = () => init(dataThrough);
+      b.onclick = () => init(dataThrough, REGION);
       $("ex-state").appendChild(document.createElement("br")); $("ex-state").appendChild(b);
     }
   }
 
   let wired = false;
-  async function init(through) {
+  function renderPresets() {
+    const lat1 = G.origin.lat + G.rows * G.cell_degrees, lon1 = G.origin.lon + G.cols * G.cell_degrees;
+    const all = [{ label: `Whole ${REGION.short || "region"} box`, box: [G.origin.lat, lat1, G.origin.lon, lon1] }].concat(REGION.presets || []);
+    const host = $("presets"); host.textContent = "";
+    for (const p of all) {
+      host.appendChild(Object.assign(document.createElement("button"),
+        { type: "button", className: "ghost", textContent: p.label, title: p.box.join(", ") })).dataset.preset = p.box.join(",");
+    }
+  }
+
+  async function init(through, region) {
     dataThrough = through;
+    if (region) REGION = region;
     setState("loading", "Loading the area explorer…");
     try {
-      const res = await fetch("data/grid.json", { cache: "no-cache" });
+      const res = await fetch(REGION.grid, { cache: "no-cache" });
       if (!res.ok) throw new Error(res.status);
       G = await res.json();
     } catch (e) { setState("error", "Could not load the area data. Check your connection and try again."); return; }
-    try { GEO = await getJson("data/geo.json"); } catch (e) { GEO = null; }
+    GEO = null;
+    if (REGION.geo) { try { GEO = await getJson(REGION.geo); } catch (e) { GEO = null; } }
+    $("map-note").textContent = REGION.map_note || "";
     cells = G.rows * G.cols; NW = G.n_weeks; firstMs = Date.parse(G.first_week + "T00:00:00Z");
     if (!NW || !G.modis.n.length) { setState("empty", "No hotspot data is available for the explorer yet."); return; }
     MOD = dense(G.modis); VII = dense(G.viirs);
@@ -694,6 +709,7 @@
     $("in-from").value = `${new Date(weekStartMs(NW - 1)).getUTCFullYear()}-01-01`; $("in-to").value = endIso;
     $("data-end").textContent = endIso;
     setState("ready");
+    renderPresets();
     scaleLegend(); readRange(); writeInputs();
     if (!wired) { wire(); wired = true; }
     refresh();

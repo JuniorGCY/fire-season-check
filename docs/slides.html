@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fire Season Check · Slides</title>
+<meta name="description" content="Seven-slide demo of Fire Season Check, NASA Space Apps Challenge 2026: Harmonization of MODIS and VIIRS Hot Spots.">
+<meta name="ai-disclosure" content="Built with the help of Claude (Anthropic), an AI assistant. The author chose the challenge, chose the approach among the options the assistant listed, chose the users, the regions and how results are shown, and downloaded the NASA FIRMS data. The assistant wrote the code, tests and texts and ran the data checks; the author reviewed the results and decides what is published.">
+<style>
+  :root { --bg: #14181b; --surface: #1c2226; --ink: #eef1f2; --muted: #a2adb3; --line: #323b41;
+    --accent: #fb923c; --good: #5eead4; --hot: #d7301f; --focus: #8ab4ff; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .deck { height: 100%; display: flex; flex-direction: column; }
+  .stage { flex: 1; display: flex; align-items: center; justify-content: center; padding: 16px; min-height: 0; }
+  .slide { display: none; width: min(100%, calc((100vh - 90px) * 16 / 9)); aspect-ratio: 16 / 9; background: var(--surface);
+    border: 1px solid var(--line); border-radius: 18px; padding: clamp(18px, 4.2%, 56px); position: relative; overflow: hidden;
+    font-size: clamp(11px, 1.55vw, 22px); }
+  .slide.on { display: flex; flex-direction: column; }
+  .slide::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 6px;
+    background: linear-gradient(90deg, #fdd49e, #fc8d59 35%, #d7301f 70%, #7f0000); }
+  .kicker { text-transform: uppercase; letter-spacing: .1em; font-size: .72em; font-weight: 700; color: var(--accent); margin: 0 0 .5em; }
+  h1 { font-size: 2.6em; line-height: 1.05; margin: 0 0 .3em; letter-spacing: -.02em; }
+  h2 { font-size: 1.75em; line-height: 1.12; margin: 0 0 .6em; letter-spacing: -.01em; }
+  p { margin: 0 0 .7em; }
+  .muted { color: var(--muted); }
+  .small { font-size: .78em; }
+  .big { font-size: 4.2em; font-weight: 800; line-height: 1; color: var(--good); letter-spacing: -.03em; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4em; flex: 1; min-height: 0; }
+  .box { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: .9em 1em; }
+  .box h3 { margin: 0 0 .4em; font-size: 1em; }
+  ul { margin: 0; padding-left: 1.1em; } li { margin: 0 0 .35em; }
+  .bars { display: grid; gap: .45em; }
+  .bar { display: grid; grid-template-columns: 9.5em 1fr 3.2em; align-items: center; gap: .6em; font-size: .9em; }
+  .bar span.fill { height: 1.05em; border-radius: 4px; background: linear-gradient(90deg, #fc8d59, #d7301f); }
+  .bar b { text-align: right; font-variant-numeric: tabular-nums; }
+  .eq { font-size: 1.35em; font-weight: 700; background: var(--bg); border: 1px solid var(--line); border-radius: 12px;
+    padding: .5em .8em; display: inline-block; margin: 0 0 .7em; }
+  .eq em { color: var(--accent); font-style: normal; }
+  .foot { margin-top: auto; display: flex; justify-content: space-between; gap: 1em; font-size: .7em; color: var(--muted); }
+  a { color: var(--focus); }
+  .logo { width: 2.6em; height: 2.6em; margin-bottom: .8em; }
+  nav { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 0 16px 14px; }
+  nav button { font: inherit; font-weight: 600; background: transparent; color: var(--ink); border: 1.5px solid var(--line);
+    border-radius: 8px; min-height: 44px; min-width: 44px; padding: 6px 14px; cursor: pointer; }
+  nav button:hover { border-color: var(--ink); }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  #count { min-width: 5em; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
+  @media (max-width: 700px) {
+    .slide { aspect-ratio: auto; min-height: 70vh; font-size: 13px; }
+    .cols { grid-template-columns: 1fr; }
+  }
+  @media print {
+    :root { --bg: #fbfaf7; --surface: #ffffff; --ink: #1d2327; --muted: #4f5a61; --line: #d9d6cf;
+      --accent: #c2410c; --good: #0f766e; --focus: #1d4ed8; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page { size: 13.333in 7.5in; margin: 0; }
+    body { background: #fff; } nav { display: none; } .stage { padding: 0; display: block; }
+    .slide { display: flex !important; flex-direction: column; width: 13.333in; height: 7.5in; aspect-ratio: auto; border-radius: 0;
+      border: 0; page-break-after: always; font-size: 21px; }
+  }
+</style>
+</head>
+<body>
+<div class="deck">
+  <main class="stage" aria-live="polite">
+
+    <section class="slide on" aria-label="Slide 1 of 7: title">
+      <svg class="logo" viewBox="0 0 40 40" aria-hidden="true">
+        <rect width="40" height="40" rx="10" fill="#7f0000"/>
+        <path d="M20 8c1.5 4.5 7 7.5 7 14a7 7 0 0 1-14 0c0-3.2 1.6-5.2 3.4-6.9.3 2 1.3 3.4 2.6 3.9-.6-3.9.2-7.6 1-11z" fill="#fc8d59"/>
+        <path d="M20 21c1.2 2 3 3 3 5.2a3 3 0 0 1-6 0c0-1.6.8-2.5 1.7-3.3.2.8.6 1.3 1.1 1.5-.2-1.3 0-2.4.2-3.4z" fill="#fdd49e"/>
+      </svg>
+      <p class="kicker">NASA Space Apps Challenge 2026 · Harmonization of MODIS and VIIRS Hot Spots</p>
+      <h1>Fire Season Check</h1>
+      <p style="font-size:1.3em">Two NASA satellites, one common ruler:<br>is this fire season above or below normal?</p>
+      <p class="muted">For firefighters, brigades and civil defence. Tocantins (Brazil) and the Argentine Chaco.</p>
+      <div class="foot"><span>Sam (PALMVY) · Londrina Local Event</span>
+        <span><a href="https://juniorgcy.github.io/fire-season-check/">juniorgcy.github.io/fire-season-check</a></span></div>
+    </section>
+
+    <section class="slide" aria-label="Slide 2 of 7: the problem">
+      <p class="kicker">The problem</p>
+      <h2>25 years of fire records, split across two sensors that do not agree</h2>
+      <div class="cols">
+        <div class="box"><h3>MODIS (Terra, Aqua) · since 2000</h3>
+          <ul><li>Pixels of about 1 km²</li><li>The long history managers need</li><li>Satellites near the end of their lives</li></ul></div>
+        <div class="box"><h3>VIIRS (S-NPP) · since 2012</h3>
+          <ul><li>Pixels of about 0.14 km², sees smaller fires</li><li>About 4 VIIRS hotspots for each MODIS hotspot in Tocantins</li><li>Different overpass times</li></ul></div>
+      </div>
+      <p style="margin-top:.9em">Raw counts cannot be compared, so a fire manager cannot answer a simple question:
+        <b>is this season worse than usual?</b></p>
+    </section>
+
+    <section class="slide" aria-label="Slide 3 of 7: the answer first">
+      <p class="kicker">The answer first</p>
+      <h2>Tocantins, through November 1, 2026</h2>
+      <div class="big">−41%</div>
+      <p style="font-size:1.15em;margin-top:.5em">hotspots against the average of the previous 10 years:
+        <b>the lowest of 11 years</b> for the same weeks. Against their median: −41% too.</p>
+      <p class="muted">Recomputed four other ways (MODIS alone, VIIRS alone, fire power, one yearly ratio): between −38% and −43%.
+        Argentine Chaco: −61% against the average, −51% against the median, also the lowest of 11 years.</p>
+      <div class="foot"><span>Data: NASA FIRMS, through 2026-11-01. Newest weeks are near-real-time and provisional.</span></div>
+    </section>
+
+    <section class="slide" aria-label="Slide 4 of 7: how we harmonize">
+      <p class="kicker">How we harmonize</p>
+      <h2>A measured ruler, tested on years it has never seen</h2>
+      <div class="eq">MODIS-equivalent = VIIRS × <em>factor</em></div>
+      <div class="cols">
+        <div class="box"><h3>Method</h3><ul>
+          <li>MODIS before 2012, VIIRS × factor after it</li>
+          <li>Factor fitted per calendar month on the years both satellites fly</li>
+          <li>Fit on 2012–2018, test on 2019–2026, and the reverse</li>
+          <li>Series keeps going on VIIRS when MODIS stops</li></ul></div>
+        <div class="box"><h3>Out-of-sample error per week</h3><ul>
+          <li>Tocantins: <b>9.2%</b> typical, 38.9% in the worst 10% of weeks</li>
+          <li>Argentine Chaco: <b>9.3%</b> typical, 33.2% worst 10%</li>
+          <li>Shown on the page next to every answer</li></ul></div>
+      </div>
+    </section>
+
+    <section class="slide" aria-label="Slide 5 of 7: the finding">
+      <p class="kicker">What we found</p>
+      <h2>There is no single MODIS/VIIRS factor</h2>
+      <div class="cols">
+        <div class="bars" role="img" aria-label="MODIS hotspots per VIIRS hotspot: Tocantins June 0.33, Tocantins October 0.21, Tocantins day 0.27, Tocantins night 0.19, Tocantins whole year 0.246, Chaco whole year 0.308">
+          <div class="bar"><span>Tocantins, June</span><span class="fill" style="width:94%"></span><b>0.33</b></div>
+          <div class="bar"><span>Tocantins, October</span><span class="fill" style="width:60%"></span><b>0.21</b></div>
+          <div class="bar"><span>Tocantins, day</span><span class="fill" style="width:77%"></span><b>0.27</b></div>
+          <div class="bar"><span>Tocantins, night</span><span class="fill" style="width:54%"></span><b>0.19</b></div>
+          <div class="bar"><span>Tocantins, year</span><span class="fill" style="width:70%"></span><b>0.246</b></div>
+          <div class="bar"><span>Chaco, year</span><span class="fill" style="width:88%"></span><b>0.308</b></div>
+          <p class="small muted" style="margin-top:.3em">MODIS hotspots per VIIRS hotspot, measured on 2012–2026.</p>
+        </div>
+        <div class="box"><ul>
+          <li>It changes <b>by month</b>, <b>by time of day</b> and <b>by region</b>.</li>
+          <li>A factor copied from one region is about 25% off in the other.</li>
+          <li>Stress test, Paraná Delta (small fires): the tool reported a 23% error and we left it off the page.
+            There, 2026 is −60% against the mean but only −8% against the median: one extreme year can mislead.</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <section class="slide" aria-label="Slide 6 of 7: the tool">
+      <p class="kicker">The tool</p>
+      <h2>Pick an area and dates, get the fire calendar</h2>
+      <div class="cols">
+        <div class="box"><h3>See</h3><ul>
+          <li>Draw on the map or type latitude/longitude</li>
+          <li>Year × week and year × month calendars, from 2000 on</li>
+          <li>Each week and month against the 10-year average and median</li>
+          <li>Latest month: October 2026 in Tocantins, −51% against its median</li></ul></div>
+        <div class="box"><h3>Take away</h3><ul>
+          <li>CSV of individual hotspots with a harmonized weight</li>
+          <li>Weekly, monthly and per-cell CSVs; calendars and map as PNG</li>
+          <li>Static page: no server, no keys, works on a phone</li>
+          <li>Accessible colours, keyboard use, text alternatives</li></ul></div>
+      </div>
+      <div class="foot"><span>Live: <a href="https://juniorgcy.github.io/fire-season-check/">juniorgcy.github.io/fire-season-check</a>
+        · Chaco: <a href="https://juniorgcy.github.io/fire-season-check/?region=chaco">?region=chaco</a></span></div>
+    </section>
+
+    <section class="slide" aria-label="Slide 7 of 7: limits, next steps and SI disclosure">
+      <p class="kicker">Honest limits · next steps</p>
+      <h2>What it does not do yet</h2>
+      <div class="cols">
+        <div class="box"><h3>Limits</h3><ul>
+          <li>Two validated regions; the pipeline re-validates any FIRMS box, but that is evidence, not proof</li>
+          <li>One factor for day and night together; VIIRS S-NPP only</li>
+          <li>Hotspots are detections, not confirmed fires; no brigade has field-tested it yet</li></ul></div>
+        <div class="box"><h3>Next</h3><ul>
+          <li>Separate day and night rulers; add NOAA-20/21 VIIRS</li>
+          <li>More regions; median-first headline where the mean misleads</li>
+          <li>Field test with Tocantins brigades</li></ul></div>
+      </div>
+      <p class="small muted" style="margin-top:.8em"><b>SI disclosure.</b> Built with the help of Claude (Anthropic), an AI assistant. The author chose the challenge,
+        chose the approach among the options the assistant listed, chose the users, the regions and how results are shown, and downloaded the NASA FIRMS data.
+        The assistant wrote the code, tests and texts and ran the data checks; the author reviewed the results and decides what is published.</p>
+      <div class="foot"><span>Data: NASA FIRMS (MODIS C6.1, VIIRS S-NPP). Border and towns: IBGE.</span>
+        <span>Code: <a href="https://github.com/JuniorGCY/fire-season-check">github.com/JuniorGCY/fire-season-check</a></span></div>
+    </section>
+
+  </main>
+  <nav aria-label="Slide navigation">
+    <button type="button" id="prev" aria-label="Previous slide">←</button>
+    <span id="count" aria-live="polite">1 / 7</span>
+    <button type="button" id="next" aria-label="Next slide">→</button>
+  </nav>
+</div>
+<script>
+(() => {
+  const slides = [...document.querySelectorAll(".slide")];
+  let i = Math.max(0, Math.min(slides.length - 1, (parseInt(location.hash.slice(1), 10) || 1) - 1));
+  const show = (n) => {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle("on", k === i));
+    document.getElementById("count").textContent = `${i + 1} / ${slides.length}`;
+    history.replaceState(null, "", `#${i + 1}`);
+  };
+  document.getElementById("prev").onclick = () => show(i - 1);
+  document.getElementById("next").onclick = () => show(i + 1);
+  document.addEventListener("keydown", (e) => {
+    if (["ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); show(i + 1); }
+    if (["ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); show(i - 1); }
+    if (e.key === "Home") show(0);
+    if (e.key === "End") show(slides.length - 1);
+  });
+  window.addEventListener("hashchange", () => {
+    const n = (parseInt(location.hash.slice(1), 10) || 1) - 1;
+    if (n !== i) show(n);
+  });
+  let x0 = null;
+  document.addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener("touchend", (e) => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0; x0 = null;
+    if (Math.abs(dx) > 50) show(i + (dx < 0 ? 1 : -1));
+  });
+  show(i);
+})();
+</script>
+</body>
+</html>
